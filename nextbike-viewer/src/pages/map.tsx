@@ -27,7 +27,12 @@ export default function MapPage() {
   }, [zones.data]);
 
   return (
-    <div className="h-screen w-screen">
+    <div className="relative h-screen w-screen">
+      {places.isLoading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90">
+          <div className="text-2xl font-bold">Loading...</div>
+        </div>
+      )}
       <Map points={points} zones={zoneData} />
     </div>
   );
