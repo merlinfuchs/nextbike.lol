@@ -55,10 +55,24 @@ export const unclusteredPointLayer: LayerProps = {
   },
 };
 
+export const zoneLayer: LayerProps = {
+  id: "zones",
+  type: "fill",
+  source: "zones",
+  paint: {
+    "fill-color": "#000000",
+    "fill-opacity": 0.2,
+    "fill-outline-color": "#000000",
+    "fill-outline-width": 1,
+  },
+};
+
 export default function Map({
   points,
+  zones,
 }: {
   points: { lat: number; lon: number; data: any }[];
+  zones: any[];
 }) {
   const mapRef = useRef<MapRef>(null);
 
@@ -68,13 +82,18 @@ export default function Map({
     data: any;
   } | null>(null);
 
-  const geojson = {
+  const pointsGeoJSON = {
     type: "FeatureCollection",
     features: points.map((point) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [point.lon, point.lat] },
       properties: point.data,
     })),
+  };
+
+  const zonesGeoJSON = {
+    type: "FeatureCollection",
+    features: zones,
   };
 
   const onClick = (event: MapMouseEvent) => {
@@ -142,10 +161,14 @@ export default function Map({
         </Popup>
       )}
 
+      <Source id="zones" type="geojson" data={zonesGeoJSON}>
+        <Layer {...zoneLayer} />
+      </Source>
+
       <Source
         id="places"
         type="geojson"
-        data={geojson}
+        data={pointsGeoJSON}
         cluster={true}
         clusterMaxZoom={14}
         clusterRadius={50}

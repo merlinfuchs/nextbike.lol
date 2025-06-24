@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 export default function MapPage() {
   const places = api.place.getPlaces.useQuery();
+  const zones = api.city.getAllZones.useQuery();
 
   const points =
     places.data?.map((place) => ({
@@ -14,7 +15,7 @@ export default function MapPage() {
 
   return (
     <div className="h-screen w-screen">
-      <Map points={points} />
+      <Map points={points} zones={zones.data || []} />
     </div>
   );
 }

@@ -41,6 +41,21 @@ def main():
             upsert=True,
         )
 
+        zone_resp = requests.get(
+            f"https://zone-service.nextbikecloud.net/v1/zones/city/{city['uid']}"
+        )
+        if zone_resp.status_code == 200:
+            zones = zone_resp.json()["features"]
+            for zone in zones:
+                zone["_id"] = zone["id"]
+                zone["city_id"] = city["_id"]
+                zone["last_seen_at"] = scrape_time
+                db.zones.update_one(
+                    {"_id": zone["_id"]},
+                    {"$set": zone},
+                    upsert=True,
+                )
+
     for place in data["places"]:
         place["_id"] = place["uid"]
         place["last_seen_at"] = scrape_time
