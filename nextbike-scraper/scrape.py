@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from os import environ as env
 from datetime import datetime, timezone
+import hashlib
 
 load_dotenv()
 
@@ -50,25 +51,30 @@ def main():
         )
 
     for bike in data["bikes"]:
-        bike["_id"] = bike["number"]
-        bike["last_seen_at"] = scrape_time
-
-        place_id = bike.pop("place_id")
+        bike_hash = hashlib.sha256(str(bike).encode()).hexdigest()
 
         db.bikes.update_one(
-            {"_id": bike["_id"]},
+            {"_id": bike["number"]},
             {
-                "$set": bike,
-                "$push": {
-                    "places": {
-                        "$each": [
-                            {
-                                "place_id": place_id,
-                                "seen_at": scrape_time,
-                            },
-                        ],
-                        "$position": 0,
-                    },
+                "$set": {
+                    "_id": bike["number"],
+                    "last_seen_at": scrape_time,
+                    **bike,
+                },
+            },
+            upsert=True,
+        )
+
+        db.bike_versions.update_one(
+            {"_id": bike_hash},
+            {
+                "$set": {
+                    "_id": bike_hash,
+                    "last_seen_at": scrape_time,
+                    **bike,
+                },
+                "$setOnInsert": {
+                    "first_seen_at": scrape_time,
                 },
             },
             upsert=True,
