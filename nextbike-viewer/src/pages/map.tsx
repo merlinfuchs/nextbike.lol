@@ -13,9 +13,22 @@ export default function MapPage() {
       data: place,
     })) || [];
 
+  const zoneData = useMemo(() => {
+    return (
+      zones.data?.map((zone) => ({
+        ...zone,
+        properties: {
+          ...zone.properties,
+          fee:
+            zone.properties.rules.length > 0 ? zone.properties.rules[0].fee : 0,
+        },
+      })) || []
+    );
+  }, [zones.data]);
+
   return (
     <div className="h-screen w-screen">
-      <Map points={points} zones={zones.data || []} />
+      <Map points={points} zones={zoneData} />
     </div>
   );
 }

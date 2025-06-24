@@ -60,10 +60,16 @@ export const zoneLayer: LayerProps = {
   type: "fill",
   source: "zones",
   paint: {
-    "fill-color": "#000000",
+    "fill-color": [
+      "step",
+      ["get", "fee"],
+      "#ffffff",
+      1,
+      "#ffff00",
+      1000,
+      "#ff0000",
+    ],
     "fill-opacity": 0.2,
-    "fill-outline-color": "#000000",
-    "fill-outline-width": 1,
   },
 };
 
