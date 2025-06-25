@@ -1,7 +1,8 @@
 import { api } from "~/utils/api";
-import Map from "../components/Map";
+import Map from "../components/map/Map";
 import { useMemo, useState } from "react";
 import Head from "next/head";
+import { LoaderCircleIcon } from "lucide-react";
 
 export default function IndexPage() {
   const places = api.place.getPlaces.useQuery();
@@ -57,7 +58,10 @@ export default function IndexPage() {
 
       {places.isLoading ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90">
-          <div className="text-2xl font-bold">Loading...</div>
+          <div className="flex flex-col items-center gap-3">
+            <LoaderCircleIcon className="size-14 animate-spin" />
+            <div className="text-gray-800">Loading bikes and zones...</div>
+          </div>
         </div>
       ) : (
         <div className="absolute top-5 right-5 z-10 max-w-xs rounded-lg bg-white p-5 shadow-lg">
@@ -74,6 +78,7 @@ export default function IndexPage() {
                   type="checkbox"
                   checked={showZones}
                   onChange={() => setShowZones(!showZones)}
+                  className="h-4 w-4"
                 />
                 <label>Show zones</label>
               </div>
@@ -83,6 +88,7 @@ export default function IndexPage() {
                   type="checkbox"
                   checked={showStations}
                   onChange={() => setShowStations(!showStations)}
+                  className="h-4 w-4"
                 />
                 <label>Show stations</label>
               </div>
@@ -92,6 +98,7 @@ export default function IndexPage() {
                   type="checkbox"
                   checked={showBikes}
                   onChange={() => setShowBikes(!showBikes)}
+                  className="h-4 w-4"
                 />
                 <label>Show bikes</label>
               </div>

@@ -26,6 +26,7 @@
     "@types/mapbox-gl": "^3.4.1",
     "gl-matrix": "^3.4.3",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.523.0",
     "mapbox-gl": "^3.13.0",
     "maplibre-gl": "^5.6.0",
     "mongodb": "^6.17.0",
