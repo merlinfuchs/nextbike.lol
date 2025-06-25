@@ -4,11 +4,13 @@ import ReactMap, {
   NavigationControl,
   ScaleControl,
   Source,
+  type MapRef,
 } from "react-map-gl/maplibre";
+import bbox from "@turf/bbox";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapMouseManager from "./MapMouseManager";
 import MapResourceLoader from "./MapResourceLoader";
 import {
@@ -36,6 +38,7 @@ export default function Map({
   onPlaceSelect: (place: Place | null) => void;
 }) {
   const [cursor, setCursor] = useState("auto");
+  const mapRef = useRef<MapRef>(null);
 
   const placesGeoJSON = useMemo(
     () => ({
@@ -75,6 +78,26 @@ export default function Map({
     [routes],
   );
 
+  useEffect(() => {
+    if (!routesGeoJSON || routesGeoJSON.features.length === 0) return;
+
+    const [minLng, minLat, maxLng, maxLat] = bbox(routesGeoJSON as any);
+    console.log(minLng, minLat, maxLng, maxLat);
+    if (minLng === Infinity) return;
+
+    mapRef.current?.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      {
+        padding: 200,
+        duration: 1000,
+        maxZoom: 15,
+      },
+    );
+  }, [routesGeoJSON]);
+
   const onMouseEnter = useCallback(() => setCursor("pointer"), []);
   const onMouseLeave = useCallback(() => setCursor("auto"), []);
 
@@ -91,6 +114,7 @@ export default function Map({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       cursor={cursor}
+      ref={mapRef}
     >
       <MapResourceLoader />
       <MapMouseManager onPlaceSelect={onPlaceSelect} />
