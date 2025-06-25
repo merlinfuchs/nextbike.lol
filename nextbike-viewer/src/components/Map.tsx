@@ -1,6 +1,9 @@
 import ReactMap, {
+  GeolocateControl,
   Layer,
+  NavigationControl,
   Popup,
+  ScaleControl,
   Source,
   type LayerProps,
   type MapMouseEvent,
@@ -19,15 +22,7 @@ export const clusterLayer: LayerProps = {
   source: "places",
   filter: ["has", "point_count"],
   paint: {
-    "circle-color": [
-      "step",
-      ["get", "point_count"],
-      "#51bbd6",
-      100,
-      "#f1f075",
-      750,
-      "#f28cb1",
-    ],
+    "circle-color": "#0046d7",
     "circle-radius": ["step", ["get", "point_count"], 20, 100, 25, 750, 30],
   },
 };
@@ -41,9 +36,12 @@ export const clusterCountLayer: LayerProps = {
     "text-field": "{point_count_abbreviated}",
     "text-size": 12,
   },
+  paint: {
+    "text-color": "#fff",
+  },
 };
 
-export const unclusteredPointLayer: LayerProps = {
+/* export const unclusteredPointLayer: LayerProps = {
   id: "unclustered-point",
   type: "circle",
   source: "places",
@@ -53,6 +51,17 @@ export const unclusteredPointLayer: LayerProps = {
     "circle-radius": 6,
     "circle-stroke-width": 2,
     "circle-stroke-color": "#fff",
+  },
+}; */
+
+export const unclusteredPointLayer: LayerProps = {
+  id: "unclustered-point",
+  type: "symbol",
+  source: "places",
+  filter: ["!", ["has", "point_count"]],
+  layout: {
+    "icon-image": ["case", ["==", ["get", "spot"], true], "station", "bike"],
+    "icon-size": ["case", ["==", ["get", "spot"], true], 0.25, 0.2],
   },
 };
 
@@ -141,6 +150,18 @@ export default function Map({
   const onMouseEnter = useCallback(() => setCursor("pointer"), []);
   const onMouseLeave = useCallback(() => setCursor("auto"), []);
 
+  const onLoad = useCallback(async () => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    const bikeImage = await mapRef.current.loadImage("/bike.png");
+    mapRef.current.addImage("bike", bikeImage.data);
+
+    const stationImage = await mapRef.current.loadImage("/station.png");
+    mapRef.current.addImage("station", stationImage.data);
+  }, []);
+
   return (
     <ReactMap
       initialViewState={{
@@ -154,9 +175,14 @@ export default function Map({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onLoad={onLoad}
       cursor={cursor}
       ref={mapRef}
     >
+      <GeolocateControl position="top-left" />
+      <NavigationControl position="top-left" />
+      <ScaleControl />
+
       {selectedPoint && (
         <Popup
           anchor="top"

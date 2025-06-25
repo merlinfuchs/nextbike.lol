@@ -8,19 +8,26 @@ export default function IndexPage() {
   const zones = api.city.getAllZones.useQuery();
 
   const [showZones, setShowZones] = useState(true);
-  const [showPlaces, setShowPlaces] = useState(true);
+  const [showStations, setShowStations] = useState(true);
+  const [showBikes, setShowBikes] = useState(true);
 
   const points = useMemo(() => {
-    if (!showPlaces) return [];
+    if (!showStations && !showBikes) return [];
 
     return (
-      places.data?.map((place) => ({
-        lat: place.lat,
-        lon: place.lng,
-        data: place,
-      })) || []
+      places.data
+        ?.filter((place) => {
+          if (showStations && place.spot) return true;
+          if (showBikes && !place.spot) return true;
+          return false;
+        })
+        .map((place) => ({
+          lat: place.lat,
+          lon: place.lng,
+          data: place,
+        })) || []
     );
-  }, [places.data, showPlaces]);
+  }, [places.data, showStations, showBikes]);
 
   const zoneData = useMemo(() => {
     if (!showZones) return [];
@@ -74,10 +81,19 @@ export default function IndexPage() {
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={showPlaces}
-                  onChange={() => setShowPlaces(!showPlaces)}
+                  checked={showStations}
+                  onChange={() => setShowStations(!showStations)}
                 />
-                <label>Show places</label>
+                <label>Show stations</label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showBikes}
+                  onChange={() => setShowBikes(!showBikes)}
+                />
+                <label>Show bikes</label>
               </div>
             </div>
 
