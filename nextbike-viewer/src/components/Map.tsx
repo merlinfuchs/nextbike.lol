@@ -1,16 +1,17 @@
 import ReactMap, {
   Layer,
-  Source,
   Popup,
+  Source,
   type LayerProps,
   type MapMouseEvent,
   type MapRef,
-} from "react-map-gl/mapbox";
+} from "react-map-gl/maplibre";
+
+import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { GeoJSONSource } from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+
 import { useRef, useState } from "react";
-import { env } from "~/env";
 
 export const clusterLayer: LayerProps = {
   id: "clusters",
@@ -148,7 +149,6 @@ export default function Map({
 
   return (
     <ReactMap
-      mapboxAccessToken={env.NEXT_PUBLIC_MAPBOX_TOKEN}
       initialViewState={{
         longitude: 10.4515,
         latitude: 51.1657,
@@ -156,7 +156,7 @@ export default function Map({
       }}
       interactiveLayerIds={[clusterLayer.id!, unclusteredPointLayer.id!]}
       style={{ width: "100%", height: "100%" }}
-      mapStyle="mapbox://styles/mapbox/streets-v9"
+      mapStyle={"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"}
       onClick={onClick}
       ref={mapRef}
     >
