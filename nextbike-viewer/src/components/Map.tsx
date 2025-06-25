@@ -107,7 +107,7 @@ export default function Map({
       return;
     }
 
-    const feature = event.features[0];
+    const feature = event.features[0] as any;
     if (!feature) {
       return;
     }
@@ -134,7 +134,11 @@ export default function Map({
         return;
       }
 
-      mapRef.current.easeTo({
+      if (!zoom) {
+        return;
+      }
+
+      mapRef.current?.easeTo({
         center: feature.geometry.coordinates,
         zoom,
         duration: 500,
@@ -167,14 +171,14 @@ export default function Map({
         </Popup>
       )}
 
-      <Source id="zones" type="geojson" data={zonesGeoJSON}>
+      <Source id="zones" type="geojson" data={zonesGeoJSON as any}>
         <Layer {...zoneLayer} />
       </Source>
 
       <Source
         id="places"
         type="geojson"
-        data={pointsGeoJSON}
+        data={pointsGeoJSON as any}
         cluster={true}
         clusterMaxZoom={14}
         clusterRadius={50}

@@ -95,6 +95,8 @@ def main():
             upsert=True,
         )
 
+        # TODO: Add version entry for bikes that have disappeared
+
 
 if __name__ == "__main__":
     main()
