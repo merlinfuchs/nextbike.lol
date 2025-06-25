@@ -71,3 +71,17 @@ export const zoneLayer: LayerProps = {
     "fill-opacity": 0.2,
   },
 };
+
+export const routeLayer: LayerProps = {
+  id: "routes",
+  type: "line",
+  source: "routes",
+  layout: {
+    "line-join": "round",
+    "line-cap": "round",
+  },
+  paint: {
+    "line-color": "#888",
+    "line-width": 2,
+  },
+};

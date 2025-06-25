@@ -37,15 +37,11 @@ export default function MapContainer({
     const showStations = options.includes("stations");
     const showBikes = options.includes("bikes");
 
+    if (showBikeHistory) {
+      return bikeVersions.data?.places || [];
+    }
+
     return places.filter((place) => {
-      if (showBikeHistory) {
-        return bikeVersions.data?.some((bike) => bike.place_id === place._id);
-      }
-
-      // TODO: We should do this on the server side and then load the additional places for the history on demand
-      if (place.last_seen_at.getTime() < Date.now() - 1000 * 60 * 10)
-        return false;
-
       if (showStations && place.spot) return true;
       if (showBikes && !place.spot) return true;
       return false;
@@ -64,11 +60,24 @@ export default function MapContainer({
     }));
   }, [zones, options]);
 
+  const filteredRoutes = useMemo(() => {
+    if (!showBikeHistory || !bikeVersions.data) return [];
+    return [
+      {
+        coordinates: bikeVersions.data.places.map((place) => ({
+          lat: place.lat,
+          lng: place.lng,
+        })),
+      },
+    ];
+  }, [showBikeHistory, bikeVersions.data]);
+
   return (
     <div className="relative h-screen w-screen">
       <Map
         places={filteredPlaces}
         zones={filteredZones}
+        routes={filteredRoutes}
         onPlaceSelect={setSelectedPlace}
       />
       <MapControlPanel

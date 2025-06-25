@@ -8,7 +8,7 @@ export const placeRouter = createTRPCRouter({
       .collection<Place>("places")
       .find(
         {
-          last_seen_at: { $gt: new Date(Date.now() - 1000 * 60 * 60 * 48) },
+          last_seen_at: { $gt: new Date(Date.now() - 1000 * 60 * 15) },
         },
         /* {
           projection: {

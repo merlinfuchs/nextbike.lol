@@ -14,18 +14,25 @@ import MapResourceLoader from "./MapResourceLoader";
 import {
   clusterCountLayer,
   clusterLayer,
+  routeLayer,
   unclusteredPlaceLayer,
   zoneLayer,
 } from "./layers";
 import type { Place, Zone } from "~/server/db/models";
 
+interface Route {
+  coordinates: { lat: number; lng: number }[];
+}
+
 export default function Map({
   places,
   zones,
+  routes,
   onPlaceSelect,
 }: {
   places: Place[];
   zones: Zone[];
+  routes?: Route[];
   onPlaceSelect: (place: Place | null) => void;
 }) {
   const [cursor, setCursor] = useState("auto");
@@ -48,6 +55,24 @@ export default function Map({
       features: zones,
     }),
     [zones],
+  );
+
+  const routesGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection",
+      features:
+        routes?.map((route) => ({
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: route.coordinates.map((coord) => [
+              coord.lng,
+              coord.lat,
+            ]),
+          },
+        })) || [],
+    }),
+    [routes],
   );
 
   const onMouseEnter = useCallback(() => setCursor("pointer"), []);
@@ -76,6 +101,10 @@ export default function Map({
 
       <Source id="zones" type="geojson" data={zonesGeoJSON as any}>
         <Layer {...zoneLayer} />
+      </Source>
+
+      <Source id="routes" type="geojson" data={routesGeoJSON as any}>
+        <Layer {...routeLayer} />
       </Source>
 
       <Source
