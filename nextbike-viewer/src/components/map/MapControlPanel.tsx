@@ -8,11 +8,15 @@ export default function MapControlPanel({
   onOptionToggle,
   selectedPlace,
   onSelectPlace,
+  showBikeHistory,
+  onShowBikeHistory,
 }: {
   options: ControlOption[];
   onOptionToggle: (option: ControlOption) => void;
   selectedPlace: Place | null;
   onSelectPlace: (place: Place | null) => void;
+  showBikeHistory: boolean;
+  onShowBikeHistory: (show: boolean) => void;
 }) {
   return (
     <div className="absolute top-5 right-5 z-10 max-w-xs rounded-lg bg-white p-5 shadow-lg">
@@ -38,8 +42,11 @@ export default function MapControlPanel({
               Close
             </button>
             {selectedPlace.bike && (
-              <button className="cursor-pointer rounded-md border border-gray-300 px-2 py-1 text-sm hover:bg-gray-100">
-                View History
+              <button
+                onClick={() => onShowBikeHistory(!showBikeHistory)}
+                className="cursor-pointer rounded-md border border-gray-300 px-2 py-1 text-sm hover:bg-gray-100"
+              >
+                {showBikeHistory ? "Hide History" : "View History"}
               </button>
             )}
           </div>
@@ -52,7 +59,12 @@ export default function MapControlPanel({
             Nextbike.
           </p>
 
-          <div className="flex flex-col gap-3">
+          <p className="mb-5 text-sm text-gray-500">
+            Click on a bike or station to view more information. For bikes, you
+            can also view the history where the bike was last seen.
+          </p>
+
+          <div className="mb-5 flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -84,7 +96,7 @@ export default function MapControlPanel({
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
             <a
               href="https://github.com/merlinfuchs/nextbike.lol"
               className="text-sm text-blue-400 hover:text-blue-500"

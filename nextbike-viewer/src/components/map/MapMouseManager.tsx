@@ -53,6 +53,12 @@ export default function MapMouseManager({
       // If no features were found, it means we clicked on the base layer
       if (!features || features.length === 0) {
         onPlaceSelect(null);
+        return;
+      }
+
+      const feature = features[0];
+      if (feature?.layer.id !== unclusteredPlaceLayer.id) {
+        onPlaceSelect(null);
       }
     });
   }, [map.current]);

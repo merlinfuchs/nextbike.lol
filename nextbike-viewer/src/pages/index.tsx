@@ -1,44 +1,19 @@
-import { api } from "~/utils/api";
-import Map from "../components/map/Map";
-import { useMemo, useState } from "react";
-import Head from "next/head";
 import { LoaderCircleIcon } from "lucide-react";
+import Head from "next/head";
 import MapContainer from "~/components/map/MapContainer";
+import { api } from "~/utils/api";
 
 export default function IndexPage() {
-  const places = api.place.getPlaces.useQuery();
-  const zones = api.city.getAllZones.useQuery();
-
-  const [showZones, setShowZones] = useState(true);
-  const [showStations, setShowStations] = useState(true);
-  const [showBikes, setShowBikes] = useState(true);
-
-  const placeData = useMemo(() => {
-    if (!showStations && !showBikes) return [];
-
-    return (
-      places.data?.filter((place) => {
-        if (showStations && place.spot) return true;
-        if (showBikes && !place.spot) return true;
-        return false;
-      }) || []
-    );
-  }, [places.data, showStations, showBikes]);
-
-  const zoneData = useMemo(() => {
-    if (!showZones) return [];
-
-    return (
-      zones.data?.map((zone) => ({
-        ...zone,
-        properties: {
-          ...zone.properties,
-          fee:
-            zone.properties.rules.length > 0 ? zone.properties.rules[0].fee : 0,
-        },
-      })) || []
-    );
-  }, [zones.data, showZones]);
+  const places = api.place.getPlaces.useQuery(undefined, {
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const zones = api.city.getAllZones.useQuery(undefined, {
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
   return (
     <div className="relative h-screen w-screen">
@@ -59,7 +34,7 @@ export default function IndexPage() {
           </div>
         </div>
       ) : (
-        <MapContainer places={placeData} zones={zoneData} />
+        <MapContainer places={places.data || []} zones={zones.data || []} />
       )}
     </div>
   );
