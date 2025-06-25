@@ -1,0 +1,13 @@
+.popup-reset .maplibregl-popup-content {
+  background-color: transparent;
+  border-radius: 10px;
+  padding: 0;
+}
+
+.popup-reset .maplibregl-popup-close-button {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  top: 5px;
+  right: 5px;
+}

@@ -6,10 +6,20 @@ export const placeRouter = createTRPCRouter({
     const places = await db
       .collection("places")
       .find(
-        {},
         {
-          projection: { _id: 1, lat: 1, lng: 1, spot: 1, bike: 1 },
+          last_seen_at: { $gt: new Date(Date.now() - 1000 * 60 * 10) },
         },
+        /* {
+          projection: {
+            _id: 1,
+            lat: 1,
+            lng: 1,
+            spot: 1,
+            bike: 1,
+            bikes: 1,
+            name: 1,
+          },
+        }, */
       )
       .toArray();
     return places;

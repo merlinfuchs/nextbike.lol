@@ -11,6 +11,7 @@ import ReactMap, {
 } from "react-map-gl/maplibre";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./map.css";
 
 import type { GeoJSONSource } from "maplibre-gl";
 
@@ -62,6 +63,11 @@ export const unclusteredPointLayer: LayerProps = {
   layout: {
     "icon-image": ["case", ["==", ["get", "spot"], true], "station", "bike"],
     "icon-size": ["case", ["==", ["get", "spot"], true], 0.25, 0.2],
+    "text-field": ["case", ["==", ["get", "spot"], true], ["get", "bikes"], ""],
+    "text-size": 12,
+  },
+  paint: {
+    "text-color": "#fff",
   },
 };
 
@@ -95,8 +101,8 @@ export default function Map({
 
   const [selectedPoint, setSelectedPoint] = useState<{
     lat: number;
-    lon: number;
-    data: any;
+    lng: number;
+    name: string;
   } | null>(null);
 
   const pointsGeoJSON = {
@@ -125,11 +131,7 @@ export default function Map({
 
     const clusterId = feature.properties?.cluster_id;
     if (!clusterId) {
-      setSelectedPoint({
-        lat: feature.geometry.coordinates[1],
-        lon: feature.geometry.coordinates[0],
-        data: feature.properties,
-      });
+      setSelectedPoint(feature.properties);
       return;
     }
 
@@ -158,7 +160,7 @@ export default function Map({
     const bikeImage = await mapRef.current.loadImage("/bike.png");
     mapRef.current.addImage("bike", bikeImage.data);
 
-    const stationImage = await mapRef.current.loadImage("/station.png");
+    const stationImage = await mapRef.current.loadImage("/station_empty.png");
     mapRef.current.addImage("station", stationImage.data);
   }, []);
 
@@ -185,12 +187,19 @@ export default function Map({
 
       {selectedPoint && (
         <Popup
-          anchor="top"
-          longitude={Number(selectedPoint.lon)}
+          anchor="left"
+          offset={15}
+          longitude={Number(selectedPoint.lng)}
           latitude={Number(selectedPoint.lat)}
           onClose={() => setSelectedPoint(null)}
+          className="popup-reset"
         >
-          <pre>{JSON.stringify(selectedPoint, null, 2)}</pre>
+          <div className="w-[500px] rounded-lg bg-white p-3">
+            <div className="mb-3 text-base font-bold">{selectedPoint.name}</div>
+            <pre className="rounded-md bg-slate-900 p-2 font-mono text-white">
+              {JSON.stringify(selectedPoint, null, 2)}
+            </pre>
+          </div>
         </Popup>
       )}
 
