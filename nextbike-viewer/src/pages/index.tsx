@@ -80,6 +80,16 @@ export default function IndexPage() {
                 <label>Show places</label>
               </div>
             </div>
+
+            <div className="mt-5 flex flex-col gap-3">
+              <a
+                href="https://github.com/merlinfuchs/nextbike.lol"
+                className="text-sm text-blue-400 hover:text-blue-500"
+                target="_blank"
+              >
+                Source Code
+              </a>
+            </div>
           </div>
         </div>
       )}
