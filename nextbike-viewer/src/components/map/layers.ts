@@ -38,8 +38,8 @@ export const clusterCountLayer: LayerProps = {
     },
   }; */
 
-export const unclusteredPointLayer: LayerProps = {
-  id: "unclustered-point",
+export const unclusteredPlaceLayer: LayerProps = {
+  id: "unclustered-place",
   type: "symbol",
   source: "places",
   filter: ["!", ["has", "point_count"]],

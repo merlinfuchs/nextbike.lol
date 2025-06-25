@@ -8,38 +8,47 @@ import ReactMap, {
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import MapMouseManager from "./MapMouseManager";
 import MapResourceLoader from "./MapResourceLoader";
 import {
   clusterCountLayer,
   clusterLayer,
-  unclusteredPointLayer,
+  unclusteredPlaceLayer,
   zoneLayer,
 } from "./layers";
+import type { Place, Zone } from "~/server/db/models";
 
 export default function Map({
-  points,
+  places,
   zones,
+  onPlaceSelect,
 }: {
-  points: { lat: number; lon: number; data: any }[];
-  zones: any[];
+  places: Place[];
+  zones: Zone[];
+  onPlaceSelect: (place: Place | null) => void;
 }) {
   const [cursor, setCursor] = useState("auto");
 
-  const pointsGeoJSON = {
-    type: "FeatureCollection",
-    features: points.map((point) => ({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [point.lon, point.lat] },
-      properties: point.data,
-    })),
-  };
+  const placesGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection",
+      features: places.map((place) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [place.lng, place.lat] },
+        properties: place,
+      })),
+    }),
+    [places],
+  );
 
-  const zonesGeoJSON = {
-    type: "FeatureCollection",
-    features: zones,
-  };
+  const zonesGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection",
+      features: zones,
+    }),
+    [zones],
+  );
 
   const onMouseEnter = useCallback(() => setCursor("pointer"), []);
   const onMouseLeave = useCallback(() => setCursor("auto"), []);
@@ -51,7 +60,7 @@ export default function Map({
         latitude: 51.1657,
         zoom: 4,
       }}
-      interactiveLayerIds={[clusterLayer.id!, unclusteredPointLayer.id!]}
+      interactiveLayerIds={[clusterLayer.id!, unclusteredPlaceLayer.id!]}
       style={{ width: "100%", height: "100%" }}
       mapStyle={"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"}
       onMouseEnter={onMouseEnter}
@@ -59,7 +68,7 @@ export default function Map({
       cursor={cursor}
     >
       <MapResourceLoader />
-      <MapMouseManager />
+      <MapMouseManager onPlaceSelect={onPlaceSelect} />
 
       <GeolocateControl position="top-left" />
       <NavigationControl position="top-left" />
@@ -72,14 +81,14 @@ export default function Map({
       <Source
         id="places"
         type="geojson"
-        data={pointsGeoJSON as any}
+        data={placesGeoJSON as any}
         cluster={true}
         clusterMaxZoom={14}
         clusterRadius={50}
       >
         <Layer {...clusterLayer} />
         <Layer {...clusterCountLayer} />
-        <Layer {...unclusteredPointLayer} />
+        <Layer {...unclusteredPlaceLayer} />
       </Source>
     </ReactMap>
   );

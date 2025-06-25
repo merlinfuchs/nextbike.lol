@@ -17,11 +17,20 @@ export default function MapPlacePopup({
       onClose={onClose}
       className="popup-reset"
     >
-      <div className="w-[500px] rounded-lg bg-white p-3">
+      <div className="w-[400px] rounded-lg bg-white p-3">
         <div className="mb-3 text-base font-bold">{place.name}</div>
-        <pre className="rounded-md bg-slate-900 p-2 font-mono text-white">
+        <pre className="mb-3 max-h-[200px] overflow-y-auto rounded-md bg-slate-900 p-2 font-mono text-white">
           {JSON.stringify(place, null, 2)}
         </pre>
+
+        {place.bike && (
+          <button
+            className="rounded-md bg-blue-500 px-3 py-2 text-white"
+            onClick={() => console.log("view history")}
+          >
+            View History
+          </button>
+        )}
       </div>
     </Popup>
   );

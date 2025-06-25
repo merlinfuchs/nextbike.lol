@@ -8,11 +8,15 @@ export default function MapResourceLoader() {
     const load = async () => {
       if (!map.current) return;
 
-      const bikeImage = await map.current.loadImage("/bike.png");
-      map.current.addImage("bike", bikeImage.data);
+      if (!map.current.hasImage("bike")) {
+        const bikeImage = await map.current.loadImage("/bike.png");
+        map.current.addImage("bike", bikeImage.data);
+      }
 
-      const stationImage = await map.current.loadImage("/station_empty.png");
-      map.current.addImage("station", stationImage.data);
+      if (!map.current.hasImage("station")) {
+        const stationImage = await map.current.loadImage("/station_empty.png");
+        map.current.addImage("station", stationImage.data);
+      }
     };
 
     load();

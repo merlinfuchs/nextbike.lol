@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
-import { useMap } from "react-map-gl/maplibre";
-import { clusterLayer, unclusteredPointLayer } from "./layers";
 import type { GeoJSONSource } from "maplibre-gl";
+import { useEffect } from "react";
+import { useMap } from "react-map-gl/maplibre";
 import type { Place } from "~/server/db/models";
-import MapPlacePopup from "./MapPlacePopup";
+import { clusterLayer, unclusteredPlaceLayer } from "./layers";
 
-export default function MapMouseManager() {
+export default function MapMouseManager({
+  onPlaceSelect,
+}: {
+  onPlaceSelect: (place: Place | null) => void;
+}) {
   const map = useMap();
-
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
   useEffect(() => {
     if (!map.current) return;
@@ -36,22 +37,25 @@ export default function MapMouseManager() {
       });
     });
 
-    map.current.on("click", [unclusteredPointLayer.id!], async (event) => {
+    map.current.on("click", [unclusteredPlaceLayer.id!], async (event) => {
       if (!map.current) return;
 
       const feature = event.features?.[0];
       if (!feature) return;
 
-      setSelectedPlace(feature.properties as Place);
+      onPlaceSelect(feature.properties as Place);
+    });
+
+    map.current.on("click", (event) => {
+      // Check if any features were clicked at the click point
+      const features = map.current?.queryRenderedFeatures(event.point);
+
+      // If no features were found, it means we clicked on the base layer
+      if (!features || features.length === 0) {
+        onPlaceSelect(null);
+      }
     });
   }, [map.current]);
 
-  if (!selectedPlace) return null;
-
-  return (
-    <MapPlacePopup
-      place={selectedPlace}
-      onClose={() => setSelectedPlace(null)}
-    />
-  );
+  return null;
 }
