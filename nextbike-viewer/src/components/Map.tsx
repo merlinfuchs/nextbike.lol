@@ -9,9 +9,9 @@ import ReactMap, {
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import type { GeoJSONSource } from "mapbox-gl";
+import type { GeoJSONSource } from "maplibre-gl";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export const clusterLayer: LayerProps = {
   id: "clusters",
@@ -82,6 +82,7 @@ export default function Map({
   zones: any[];
 }) {
   const mapRef = useRef<MapRef>(null);
+  const [cursor, setCursor] = useState("auto");
 
   const [selectedPoint, setSelectedPoint] = useState<{
     lat: number;
@@ -103,7 +104,7 @@ export default function Map({
     features: zones,
   };
 
-  const onClick = (event: MapMouseEvent) => {
+  const onClick = async (event: MapMouseEvent) => {
     if (!mapRef.current || !event.features) {
       return;
     }
@@ -115,7 +116,6 @@ export default function Map({
 
     const clusterId = feature.properties?.cluster_id;
     if (!clusterId) {
-      console.log(feature);
       setSelectedPoint({
         lat: feature.geometry.coordinates[1],
         lon: feature.geometry.coordinates[0],
@@ -129,23 +129,17 @@ export default function Map({
       return;
     }
 
-    geojsonSource.getClusterExpansionZoom(clusterId, (err, zoom) => {
-      if (err) {
-        console.error(err);
-        return;
-      }
+    const zoom = await geojsonSource.getClusterExpansionZoom(clusterId);
 
-      if (!zoom) {
-        return;
-      }
-
-      mapRef.current?.easeTo({
-        center: feature.geometry.coordinates,
-        zoom,
-        duration: 500,
-      });
+    mapRef.current?.easeTo({
+      center: feature.geometry.coordinates,
+      zoom,
+      duration: 500,
     });
   };
+
+  const onMouseEnter = useCallback(() => setCursor("pointer"), []);
+  const onMouseLeave = useCallback(() => setCursor("auto"), []);
 
   return (
     <ReactMap
@@ -158,6 +152,9 @@ export default function Map({
       style={{ width: "100%", height: "100%" }}
       mapStyle={"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"}
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      cursor={cursor}
       ref={mapRef}
     >
       {selectedPoint && (
