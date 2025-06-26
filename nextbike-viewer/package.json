@@ -25,6 +25,7 @@
     "@trpc/server": "^11.0.0",
     "@turf/bbox": "^7.2.0",
     "@types/mapbox-gl": "^3.4.1",
+    "date-fns": "^4.1.0",
     "gl-matrix": "^3.4.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.523.0",

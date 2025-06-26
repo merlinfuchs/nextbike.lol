@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Place } from "~/server/db/models";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import MapControlPanelPlace from "./MapControlPanelPlace";
 
 export type ControlOption = "zones" | "stations" | "bikes";
 
@@ -24,51 +25,14 @@ export default function MapControlPanel({
   return (
     <div className="absolute top-5 right-5 z-10 w-[80dvw] rounded-lg bg-white p-5 shadow-lg sm:w-[380px]">
       {selectedPlace ? (
-        <div>
-          <div>
-            <h1 className="mb-1 text-lg font-bold">{selectedPlace.name}</h1>
-            <p className="mb-5 text-sm text-gray-500">
-              {selectedPlace.address ||
-                `${selectedPlace.lat}, ${selectedPlace.lng}`}
-            </p>
-          </div>
-
-          {!collapsed && (
-            <div className="mb-5 max-h-[300px] overflow-y-auto rounded-sm bg-gray-200 p-1 font-mono text-xs whitespace-pre-wrap">
-              {JSON.stringify(selectedPlace, null, 2)}
-            </div>
-          )}
-
-          <div className="flex justify-between">
-            <div className="flex gap-2">
-              <button
-                onClick={() => onSelectPlace(null)}
-                className="cursor-pointer rounded-md border border-gray-300 px-2 py-1 text-sm hover:bg-gray-100"
-              >
-                Close
-              </button>
-              {selectedPlace.bike && (
-                <button
-                  onClick={() => onShowBikeHistory(!showBikeHistory)}
-                  className="cursor-pointer rounded-md border border-gray-300 px-2 py-1 text-sm hover:bg-gray-100"
-                >
-                  {showBikeHistory ? "Hide History" : "View History"}
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="cursor-pointer rounded-md border border-gray-300 px-2 py-1 text-sm hover:bg-gray-100"
-            >
-              {collapsed ? (
-                <ChevronDownIcon className="h-4 w-4" />
-              ) : (
-                <ChevronUpIcon className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </div>
+        <MapControlPanelPlace
+          place={selectedPlace}
+          collapsed={collapsed}
+          onSelectPlace={onSelectPlace}
+          onShowBikeHistory={onShowBikeHistory}
+          showBikeHistory={showBikeHistory}
+          setCollapsed={setCollapsed}
+        />
       ) : (
         <div>
           <h1 className="mb-1 text-lg font-bold">nextbike.lol</h1>
