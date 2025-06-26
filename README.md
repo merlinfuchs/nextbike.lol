@@ -15,3 +15,10 @@ Right now the scraper is capable of collecting all bike positions over time and 
 ## See the position history of a bike
 
 ![Example Bike History](./example-history.png)
+
+## Other Ideas
+
+- [ ] Bike heatmap
+- [ ] Replay of bike movement
+- [ ] "Highway" & "Hotspot" detection
+- [ ] Nextbike revenue estimation
