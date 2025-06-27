@@ -22,3 +22,7 @@ Right now the scraper is capable of collecting all bike positions over time and 
 - [ ] Replay of bike movement
 - [ ] "Highway" & "Hotspot" detection
 - [ ] Nextbike revenue estimation
+- [ ] Average trip length
+- [ ] Activity by weekday and time (or external data sources like weather)
+- [ ] Bike travel distance leaderboard
+- [ ] Let users “adopt” a bike and follow its adventures daily, like a Tamagotchi on wheels
