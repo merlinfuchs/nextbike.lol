@@ -26,3 +26,5 @@ Right now the scraper is capable of collecting all bike positions over time and 
 - [ ] Activity by weekday and time (or external data sources like weather)
 - [ ] Bike travel distance leaderboard
 - [ ] Let users “adopt” a bike and follow its adventures daily, like a Tamagotchi on wheels
+
+Inspiration from https://www.visualization.bike
