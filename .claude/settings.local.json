@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(pkill -f \"next dev\" 2>/dev/null; sleep 1; echo \"killed\")",
+      "Bash(curl -s \"https://maps.nextbike.net/maps/nextbike-live.flatjson\" | python3 -c \"\nimport json, sys\nd = json.load\\(sys.stdin\\)\nprint\\('Top-level keys:', list\\(d.keys\\(\\)\\)\\)\nif 'bikes' in d:\n    b = d['bikes']\n    print\\('Bike count:', len\\(b\\)\\)\n    print\\('First bike:', json.dumps\\(b[0], indent=2\\) if b else 'none'\\)\nelse:\n    print\\('No bikes key'\\)\n\" 2>&1)",
+      "Bash(pkill -f \"next dev\" 2>/dev/null; sleep 1 && npm run dev 2>&1)",
+      "Bash(npm install:*)",
+      "Bash(pkill -f \"next dev\" 2>/dev/null; docker compose up -d 2>&1)",
+      "Bash(*)",
+      "Bash(docker compose:*)",
+      "Bash(node -e \"\nconst postgres = require\\('postgres'\\);\nconst sql = postgres\\(process.env.DATABASE_URL\\);\n\nasync function main\\(\\) {\n  // What does spot=true look like? Sample with different rack counts\n  const spotTrueWithRacks = await sql\\\\`SELECT uid, name, bikes, bike_racks, spot FROM places WHERE spot=true AND bike_racks > 0 LIMIT 3\\\\`;\n  const spotTrueNoRacks = await sql\\\\`SELECT uid, name, bikes, bike_racks, spot FROM places WHERE spot=true AND bike_racks = 0 LIMIT 5\\\\`;\n  const spotFalse = await sql\\\\`SELECT uid, name, bikes, bike_racks, spot FROM places WHERE spot=false LIMIT 5\\\\`;\n  \n  console.log\\('spot=true WITH racks \\(real stations\\):', JSON.stringify\\(spotTrueWithRacks, null, 2\\)\\);\n  console.log\\('spot=true NO racks:', JSON.stringify\\(spotTrueNoRacks, null, 2\\)\\);\n  console.log\\('spot=false:', JSON.stringify\\(spotFalse, null, 2\\)\\);\n\n  // Count breakdown\n  const counts = await sql\\\\`\n    SELECT spot, bike_racks > 0 as has_racks, COUNT\\(*\\) as n\n    FROM places GROUP BY spot, has_racks ORDER BY spot, has_racks\n  \\\\`;\n  console.log\\('Counts by spot + has_racks:', JSON.stringify\\(counts, null, 2\\)\\);\n  \n  await sql.end\\(\\);\n}\nmain\\(\\).catch\\(console.error\\);\n\" 2>&1)",
+      "WebFetch(*)",
+      "WebSearch"
+    ]
+  }
+}
