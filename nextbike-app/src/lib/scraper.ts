@@ -450,6 +450,7 @@ export async function scrape() {
           freeSpecialRacks: p.freeSpecialRacks,
           rackLocks: p.rackLocks,
           bikeTypes: p.bikeTypes,
+          location: point(p.lng, p.lat),
           createdAt: now,
           updatedAt: now,
         };
@@ -481,6 +482,7 @@ export async function scrape() {
           freeSpecialRacks: sql`excluded.free_special_racks`,
           rackLocks: sql`excluded.rack_locks`,
           bikeTypes: sql`excluded.bike_types`,
+          location: sql`excluded.location`,
           updatedAt: now,
         },
       });

@@ -126,6 +126,11 @@ export const places = schema.table("places", {
   freeSpecialRacks: integer("free_special_racks").notNull().default(0),
   rackLocks: boolean("rack_locks").notNull().default(false),
   bikeTypes: jsonb("bike_types").notNull(),
+  location: geometry("location", {
+    type: "point",
+    mode: "xy",
+    srid: 4326,
+  }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
