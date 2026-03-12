@@ -20,32 +20,24 @@ import { useTRPC } from "@/trpc/client";
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
-// --- layer definitions ---
+// --- layer definitions (single combined source: places-and-bikes) ---
 
-const placeClusterLayer: LayerProps = {
-  id: "place-clusters",
+const combinedClusterLayer: LayerProps = {
+  id: "combined-clusters",
   type: "circle",
-  source: "places",
+  source: "places-and-bikes",
   filter: ["has", "point_count"],
   paint: {
-    "circle-color": [
-      "step",
-      ["get", "point_count"],
-      "#4ade80",
-      10,
-      "#facc15",
-      50,
-      "#f87171",
-    ],
-    "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 30],
+    "circle-color": "#6366f1",
+    "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 28, 200, 34],
     "circle-opacity": 0.85,
   },
 };
 
-const placeClusterCountLayer: LayerProps = {
-  id: "place-cluster-count",
+const combinedClusterCountLayer: LayerProps = {
+  id: "combined-cluster-count",
   type: "symbol",
-  source: "places",
+  source: "places-and-bikes",
   filter: ["has", "point_count"],
   layout: {
     "text-field": "{point_count_abbreviated}",
@@ -58,8 +50,8 @@ const placeClusterCountLayer: LayerProps = {
 const placeUnclusteredLayer: LayerProps = {
   id: "place-unclustered",
   type: "circle",
-  source: "places",
-  filter: ["!", ["has", "point_count"]],
+  source: "places-and-bikes",
+  filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "featureType"], "place"]],
   paint: {
     "circle-color": [
       "case",
@@ -75,36 +67,11 @@ const placeUnclusteredLayer: LayerProps = {
   },
 };
 
-const bikeClusterLayer: LayerProps = {
-  id: "bike-clusters",
-  type: "circle",
-  source: "bikes",
-  filter: ["has", "point_count"],
-  paint: {
-    "circle-color": "#60a5fa",
-    "circle-radius": ["step", ["get", "point_count"], 14, 50, 20, 200, 28],
-    "circle-opacity": 0.8,
-  },
-};
-
-const bikeClusterCountLayer: LayerProps = {
-  id: "bike-cluster-count",
-  type: "symbol",
-  source: "bikes",
-  filter: ["has", "point_count"],
-  layout: {
-    "text-field": "{point_count_abbreviated}",
-    "text-size": 11,
-    "text-font": ["Noto Sans Regular"],
-  },
-  paint: { "text-color": "#1e3a5f" },
-};
-
 const bikeUnclusteredLayer: LayerProps = {
   id: "bike-unclustered",
   type: "circle",
-  source: "bikes",
-  filter: ["!", ["has", "point_count"]],
+  source: "places-and-bikes",
+  filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "featureType"], "bike"]],
   paint: {
     "circle-color": "#3b82f6",
     "circle-radius": 5,
@@ -224,35 +191,30 @@ export default function BikeMap() {
     return () => clearInterval(interval);
   }, [fetchForViewport]);  */
 
-  // GeoJSON sources (tRPC types use location: { lat, lng })
-  const placesGeoJSON = useMemo(
+  // Single combined GeoJSON: places and bikes with featureType for filtering
+  const placesAndBikesGeoJSON = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: places.map((p) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [p.location.lng, p.location.lat],
-        },
-        properties: p,
-      })),
+      features: [
+        ...places.map((p) => ({
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [p.location.lng, p.location.lat],
+          },
+          properties: { ...p, featureType: "place" as const },
+        })),
+        ...bikes.map((b) => ({
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [b.location.lng, b.location.lat],
+          },
+          properties: { ...b, featureType: "bike" as const },
+        })),
+      ],
     }),
-    [places]
-  );
-
-  const bikesGeoJSON = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: bikes.map((b) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [b.location.lng, b.location.lat],
-        },
-        properties: b,
-      })),
-    }),
-    [bikes]
+    [places, bikes]
   );
 
   // Trail GeoJSON: a LineString + individual Points for the selected bike
@@ -302,10 +264,9 @@ export default function BikeMap() {
 
     const features = map.queryRenderedFeatures(e.point, {
       layers: [
-        "bike-clusters",
-        "bike-unclustered",
-        "place-clusters",
+        "combined-clusters",
         "place-unclustered",
+        "bike-unclustered",
       ],
     });
 
@@ -318,21 +279,10 @@ export default function BikeMap() {
     const feature = features[0];
     const coords = (feature.geometry as GeoJSON.Point).coordinates;
 
-    // Bike cluster → zoom in
-    if (feature.layer.id === "bike-clusters") {
+    // Combined cluster → zoom in
+    if (feature.layer.id === "combined-clusters") {
       const clusterId = feature.properties?.cluster_id as number;
-      const source = map.getSource("bikes") as maplibregl.GeoJSONSource;
-      source
-        .getClusterExpansionZoom(clusterId)
-        .then((zoom) => map.easeTo({ center: [coords[0], coords[1]], zoom }))
-        .catch(console.error);
-      return;
-    }
-
-    // Place cluster → zoom in
-    if (feature.layer.id === "place-clusters") {
-      const clusterId = feature.properties?.cluster_id as number;
-      const source = map.getSource("places") as maplibregl.GeoJSONSource;
+      const source = map.getSource("places-and-bikes") as maplibregl.GeoJSONSource;
       source
         .getClusterExpansionZoom(clusterId)
         .then((zoom) => map.easeTo({ center: [coords[0], coords[1]], zoom }))
@@ -342,7 +292,7 @@ export default function BikeMap() {
 
     // Individual bike → show trail (tRPC getBikePositions uses bikeId)
     if (feature.layer.id === "bike-unclustered") {
-      const props = feature.properties as Bike;
+      const props = feature.properties as Bike & { featureType: "bike" };
       setPlacePopup(null);
       setBikePopup({
         bikeId: props.id,
@@ -355,7 +305,7 @@ export default function BikeMap() {
 
     // Individual place → show info popup
     if (feature.layer.id === "place-unclustered") {
-      const props = feature.properties as Place;
+      const props = feature.properties as Place & { featureType: "place" };
       setBikePopup(null);
       setPlacePopup({ place: props, lng: coords[0], lat: coords[1] });
       return;
@@ -374,9 +324,8 @@ export default function BikeMap() {
         mapStyle={MAP_STYLE}
         cursor={cursor}
         interactiveLayerIds={[
-          "place-clusters",
+          "combined-clusters",
           "place-unclustered",
-          "bike-clusters",
           "bike-unclustered",
         ]}
         // onLoad={fetchForViewport}
@@ -411,35 +360,22 @@ export default function BikeMap() {
           </Source>
         )}
 
-        {/* Place stations */}
+        {/* Places and bikes in one clustered source */}
         <Source
-          id="places"
+          id="places-and-bikes"
           type="geojson"
-          data={placesGeoJSON}
+          data={placesAndBikesGeoJSON}
           cluster
           clusterMaxZoom={14}
           clusterRadius={50}
         >
-          <Layer {...placeClusterLayer} />
-          <Layer {...placeClusterCountLayer} />
+          <Layer {...combinedClusterLayer} />
+          <Layer {...combinedClusterCountLayer} />
           <Layer {...placeUnclusteredLayer} />
-        </Source>
-
-        {/* Individual bikes */}
-        <Source
-          id="bikes"
-          type="geojson"
-          data={bikesGeoJSON}
-          cluster
-          clusterMaxZoom={14}
-          clusterRadius={40}
-        >
-          <Layer {...bikeClusterLayer} />
-          <Layer {...bikeClusterCountLayer} />
           <Layer {...bikeUnclusteredLayer} />
         </Source>
 
-        {/* Place popup */}
+        {/* Place popup — closeOnClick: false so one click on another feature (same or different type) switches popup */}
         {placePopup && (
           <Popup
             longitude={placePopup.lng}
@@ -447,6 +383,8 @@ export default function BikeMap() {
             anchor="bottom"
             onClose={() => setPlacePopup(null)}
             closeButton
+            closeOnClick={false}
+            className="pointer-events-none *:pointer-events-auto"
           >
             <div className="min-w-[160px] text-sm">
               <p className="font-semibold text-gray-900">
@@ -461,7 +399,7 @@ export default function BikeMap() {
           </Popup>
         )}
 
-        {/* Bike popup */}
+        {/* Bike popup — closeOnClick: false so one click on another feature (same or different type) switches popup */}
         {bikePopup && (
           <Popup
             longitude={bikePopup.lng}
@@ -469,6 +407,8 @@ export default function BikeMap() {
             anchor="bottom"
             onClose={() => setBikePopup(null)}
             closeButton
+            closeOnClick={false}
+            className="pointer-events-none *:pointer-events-auto"
           >
             <div className="min-w-[180px] text-sm">
               <p className="font-semibold text-gray-900">
