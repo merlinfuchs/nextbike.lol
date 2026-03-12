@@ -1,56 +1,177 @@
 import {
+  bigint,
   bigserial,
   boolean,
   doublePrecision,
   integer,
-  pgTable,
+  pgSchema,
   text,
   timestamp,
+  geometry,
+  serial,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
-export const cities = pgTable("cities", {
-  uid: integer("uid").primaryKey(),
-  name: text("name").notNull(),
-  lat: doublePrecision("lat").notNull(),
-  lng: doublePrecision("lng").notNull(),
-  availableBikes: integer("available_bikes").notNull().default(0),
+export const schema = pgSchema("nextbike");
+
+// Called "countries" in the Nextbike API
+export const networks = schema.table("networks", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  hotline: text("hotline").notNull(),
+  domain: text("domain").notNull(),
+  language: text("language").notNull(),
+  email: text("email").notNull(),
+  timezone: text("timezone").notNull(),
+  currency: text("currency").notNull(),
+  countryCallingCode: text("country_calling_code").notNull(),
+  systemOperatorAddress: text("system_operator_address").notNull(),
+  country: text("country").notNull(),
+  countryName: text("country_name").notNull(),
+  termsUrl: text("terms_url").notNull(),
+  policyUrl: text("policy_url").notNull(),
+  websiteUrl: text("website_url").notNull(),
+  pricingUrl: text("pricing_url").notNull(),
+  faqUrl: text("faq_url").notNull(),
+  storeAndroidUrl: text("store_android_url").notNull(),
+  storeIOSUrl: text("store_ios_url").notNull(),
+  vat: text("vat").notNull(),
+  showBikeTypes: boolean("show_bike_types").notNull(),
+  showBikeTypeGroups: boolean("show_bike_type_groups").notNull(),
+  showFreeRacks: boolean("show_free_racks").notNull(),
   bookedBikes: integer("booked_bikes").notNull().default(0),
-  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+  setPointBikes: integer("set_point_bikes").notNull().default(0),
+  availableBikes: integer("available_bikes").notNull().default(0),
+  cappedAvailableBikes: boolean("capped_available_bikes").notNull(),
+  noRegistration: boolean("no_registration").notNull(),
+  expressRental: boolean("express_rental").notNull(),
+  location: geometry("location", {
+    type: "point",
+    mode: "xy",
+    srid: 4326,
+  }).notNull(),
+  zoom: integer("zoom").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
-export const places = pgTable("places", {
-  uid: integer("uid").primaryKey(),
+// Called "cities" in the Nextbike API
+export const areas = schema.table("areas", {
+  id: serial("id").primaryKey(),
+  uid: integer("uid").notNull().unique(),
+  networkId: integer("network_id")
+    .notNull()
+    .references(() => networks.id, {
+      onDelete: "cascade",
+    }),
   name: text("name").notNull(),
-  lat: doublePrecision("lat").notNull(),
-  lng: doublePrecision("lng").notNull(),
+  alias: text("alias").notNull(),
+  mapsIcon: text("maps_icon").notNull(),
+  websiteUrl: text("website_url").notNull(),
+  break: boolean("break").notNull().default(false),
+  numPlaces: integer("num_places").notNull().default(0),
+  bookesBikes: integer("booked_bikes").notNull().default(0),
+  setPointBikes: integer("set_point_bikes").notNull().default(0),
+  availableBikes: integer("available_bikes").notNull().default(0),
+  returnToOfficialOnly: boolean("return_to_official_only").notNull(),
+  refreshRate: text("refresh_rate").notNull(),
+  bikesTypes: jsonb("bikes_types").notNull(),
+  boundsNorthEast: geometry("bounds_north_east", {
+    type: "point",
+    mode: "xy",
+    srid: 4326,
+  }).notNull(),
+  boundsSouthWest: geometry("bounds_south_west", {
+    type: "point",
+    mode: "xy",
+    srid: 4326,
+  }).notNull(),
+  location: geometry("location", {
+    type: "point",
+    mode: "xy",
+    srid: 4326,
+  }).notNull(),
+  zoom: integer("zoom").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+export const places = schema.table("places", {
+  id: serial("id").primaryKey(),
+  uid: integer("uid").notNull().unique(),
+  areaId: integer("area_id")
+    .notNull()
+    .references(() => areas.id, {
+      onDelete: "cascade",
+    }),
+  name: text("name").notNull(),
+  address: text("address"),
+  // bike and spot are (with a handful of exceptions) mutually exclusive and one is required
+  // spot: true means it's a real station
+  // bike: true means it's a virtual station for just that one bike
+  // Virtual places can move around with the bike, but real stations are static
+  bike: boolean("bike").notNull().default(false),
   spot: boolean("spot").notNull().default(false),
+  maintenance: boolean("maintenance").notNull().default(false),
+  terminalType: text("terminal_type").notNull(),
+  placeType: text("place_type").notNull(),
+  number: integer("number").notNull(),
+  bookedBikes: integer("booked_bikes").notNull().default(0),
   bikes: integer("bikes").notNull().default(0),
   bikesAvailableToRent: integer("bikes_available_to_rent").notNull().default(0),
-  bookedBikes: integer("booked_bikes").notNull().default(0),
+  activePlace: integer("active_place").notNull().default(0),
   bikeRacks: integer("bike_racks").notNull().default(0),
-  cityId: integer("city_id"),
-  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+  freeRacks: integer("free_racks").notNull().default(0),
+  specialRacks: integer("special_racks").notNull().default(0),
+  freeSpecialRacks: integer("free_special_racks").notNull().default(0),
+  rackLocks: boolean("rack_locks").notNull().default(false),
+  bikeTypes: jsonb("bike_types").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
-export const bikes = pgTable("bikes", {
-  number: text("number").primaryKey(),
-  lat: doublePrecision("lat").notNull(),
-  lng: doublePrecision("lng").notNull(),
-  placeId: integer("place_id"),
-  spot: boolean("spot").notNull().default(false),
-  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+export const bikes = schema.table("bikes", {
+  id: serial("id").primaryKey(),
+  number: text("number").notNull().unique(),
+  placeId: integer("place_id")
+    .notNull()
+    .references(() => places.id, {
+      onDelete: "cascade",
+    }),
+  bikeType: integer("bike_type").notNull(),
+  lockTypes: jsonb("lock_types").notNull(),
+  active: boolean("active").notNull().default(true),
+  state: text("state").notNull(),
+  electricLock: boolean("electric_lock").notNull().default(false),
+  boardComputer: bigint("board_computer", { mode: "number" }).notNull(),
+  pedelecBattery: integer("pedelec_battery"),
+  batteryPack: jsonb("battery_pack"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
-export const bikePositions = pgTable("bike_positions", {
+export const bikePositions = schema.table("bike_positions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  bikeNumber: text("bike_number").notNull(),
-  lat: doublePrecision("lat").notNull(),
-  lng: doublePrecision("lng").notNull(),
-  placeId: integer("place_id"),
-  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  bikeId: integer("bike_id")
+    .notNull()
+    .references(() => bikes.id, {
+      onDelete: "cascade",
+    }),
+  placeId: integer("place_id")
+    .notNull()
+    .references(() => places.id, {
+      onDelete: "cascade",
+    }),
+  location: geometry("location", {
+    type: "point",
+    mode: "xy",
+    srid: 4326,
+  }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 
+export type Network = typeof networks.$inferSelect;
+export type Area = typeof areas.$inferSelect;
 export type Place = typeof places.$inferSelect;
-export type City = typeof cities.$inferSelect;
 export type Bike = typeof bikes.$inferSelect;
 export type BikePosition = typeof bikePositions.$inferSelect;

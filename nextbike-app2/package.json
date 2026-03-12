@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:studio": "drizzle-kit studio",
+    "db:push": "drizzle-kit push",
+    "postinstall": "cp node_modules/maplibre-gl/dist/maplibre-gl-csp-worker.js public/maplibre-worker.js"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",
@@ -21,6 +24,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.9",
