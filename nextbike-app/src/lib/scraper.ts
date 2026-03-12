@@ -5,7 +5,7 @@ import { haversineDistance } from "./geo";
 
 const LIVE_DATA_URL = "https://api.nextbike.net/maps/nextbike-live.json";
 const CHUNK_SIZE = 200;
-const POSITION_THRESHOLD_METERS = 250;
+const POSITION_THRESHOLD_METERS = 100;
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -575,12 +575,12 @@ export async function scrape() {
     if (bikeId == null || placeId == null) continue;
     const prev = lastByBikeId.get(bikeId);
     const isNew = !prev;
-    const placeChanged = prev ? prev.placeId !== placeId : false;
     const hasMoved =
       prev &&
       haversineDistance(prev.lat, prev.lng, b.lat, b.lng) >
         POSITION_THRESHOLD_METERS;
-    if (isNew || placeChanged || hasMoved) {
+    // Pure changes of placeId are intentionally ignored here as this doesn't seem to be a reliable indicator of movement
+    if (isNew || hasMoved) {
       positionInserts.push({
         bikeId,
         placeId,
