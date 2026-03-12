@@ -14,7 +14,12 @@ import ReactMap, {
 } from "react-map-gl/maplibre";
 import type { MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Bike, BikePosition, Place } from "@/trpc/routers/nextbike";
+import type {
+  Bike,
+  BikePosition,
+  Place,
+  Zone,
+} from "@/trpc/routers/nextbike";
 import { useTRPC } from "@/trpc/client";
 
 const MAP_STYLE =
@@ -78,6 +83,28 @@ const bikeUnclusteredLayer: LayerProps = {
     "circle-stroke-width": 1.5,
     "circle-stroke-color": "#fff",
     "circle-opacity": 0.9,
+  },
+};
+
+// Zones: semi-transparent fill, color by zone type
+const zonesFillLayer: LayerProps = {
+  id: "zones-fill",
+  type: "fill",
+  source: "zones",
+  paint: {
+    "fill-color": [
+      "match",
+      ["get", "zoneType"],
+      "BusinessZone",
+      "#22c55e",
+      "NoBusinessZone",
+      "#94a3b8",
+      "PolicyZone",
+      "#f59e0b",
+      "#a78bfa",
+    ],
+    "fill-opacity": 0.25,
+    "fill-outline-color": "rgba(0,0,0,0.15)",
   },
 };
 
@@ -160,6 +187,8 @@ export default function BikeMap() {
   const bikesQuery = useQuery(
     trpc.nextbike.getBikes.queryOptions({ excludeParked: true })
   );
+  const zonesQuery = useQuery(trpc.nextbike.getZones.queryOptions());
+  const zones: Zone[] = zonesQuery.data ?? [];
   const trailQuery = useQuery({
     ...trpc.nextbike.getBikePositions.queryOptions({
       bikeId: bikePopup?.bikeId ?? 0,
@@ -190,6 +219,37 @@ export default function BikeMap() {
     const interval = setInterval(fetchForViewport, 60_000);
     return () => clearInterval(interval);
   }, [fetchForViewport]);  */
+
+  // Zones as GeoJSON; skip world-covering polygons (e.g. NoBusinessZone exterior = whole globe)
+  const zonesGeoJSON = useMemo(() => {
+    const isWorldBbox = (ring: number[][]) => {
+      if (!ring?.length) return false;
+      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      for (const [lng, lat] of ring) {
+        minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+      }
+      return minLng <= -179 && maxLng >= 179 && minLat <= -89 && maxLat >= 89;
+    };
+    const filtered = zones.filter((z) => {
+      const coords = z.geometry?.coordinates;
+      if (!coords?.[0]?.[0]) return true;
+      return !isWorldBbox(coords[0][0]);
+    });
+    return {
+      type: "FeatureCollection" as const,
+      features: filtered.map((z) => ({
+        type: "Feature" as const,
+        geometry: z.geometry,
+        properties: {
+          id: z.id,
+          areaId: z.areaId,
+          externalId: z.externalId,
+          zoneType: z.zoneType,
+        },
+      })),
+    };
+  }, [zones]);
 
   // Single combined GeoJSON: places and bikes with featureType for filtering
   const placesAndBikesGeoJSON = useMemo(
@@ -338,6 +398,11 @@ export default function BikeMap() {
         <NavigationControl position="top-left" />
         <ScaleControl />
 
+        {/* Zones (semi-transparent fill by type) — below points so stations/bikes render on top */}
+        <Source id="zones" type="geojson" data={zonesGeoJSON}>
+          <Layer {...zonesFillLayer} />
+        </Source>
+
         {/* Trail line — lineMetrics only on the LineString source */}
         {trail.length >= 2 && (
           <Source
@@ -474,6 +539,25 @@ export default function BikeMap() {
           <span className="inline-block h-3 w-3 rounded-full bg-blue-400" />
           Individual bike
         </div>
+        {zones.length > 0 && (
+          <>
+            <div className="mt-2 border-t border-gray-200 pt-1.5 font-medium text-gray-500">
+              Zones
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded bg-green-500/30 border border-green-500/50" />
+              Business
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded bg-slate-400/30 border border-slate-400/50" />
+              No business
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded bg-amber-500/30 border border-amber-500/50" />
+              Policy (e.g. no return)
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

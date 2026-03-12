@@ -1,7 +1,7 @@
-import { and, eq, like, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { bikes, bikePositions, places } from "@/db/schema";
+import { bikes, bikePositions, places, zones } from "@/db/schema";
 import { baseProcedure, createTRPCRouter } from "../init";
 
 export type Bike = {
@@ -46,6 +46,15 @@ export type BikePosition = {
 export type Location = {
   lat: number;
   lng: number;
+};
+
+export type Zone = {
+  id: number;
+  areaId: number;
+  externalId: string;
+  zoneType: string;
+  properties: Record<string, unknown>;
+  geometry: GeoJSON.MultiPolygon;
 };
 
 export const nextbikeRouter = createTRPCRouter({
@@ -171,4 +180,28 @@ export const nextbikeRouter = createTRPCRouter({
         createdAt: row.createdAt,
       })) as BikePosition[];
     }),
+
+  getZones: baseProcedure.query(async () => {
+    const rows = await db
+      .select({
+        id: zones.id,
+        areaId: zones.areaId,
+        externalId: zones.externalId,
+        zoneType: zones.zoneType,
+        properties: zones.properties,
+        geometryJson: sql<string>`ST_AsGeoJSON("nextbike"."zones"."geometry")`.as(
+          "geometry_json"
+        ),
+      })
+      .from(zones);
+
+    return rows.map((row) => ({
+      id: row.id,
+      areaId: row.areaId,
+      externalId: row.externalId,
+      zoneType: row.zoneType,
+      properties: row.properties as Record<string, unknown>,
+      geometry: JSON.parse(row.geometryJson) as GeoJSON.MultiPolygon,
+    })) as Zone[];
+  }),
 });
