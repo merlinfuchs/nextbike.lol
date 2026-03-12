@@ -2,7 +2,7 @@ import {
   bigint,
   bigserial,
   boolean,
-  doublePrecision,
+  customType,
   integer,
   pgSchema,
   text,
@@ -13,6 +13,13 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const schema = pgSchema("nextbike");
+
+/** PostGIS MultiPolygon (SRID 4326). Use sql`ST_GeomFromGeoJSON(${json})` when inserting. */
+const multipolygonGeometry = customType<{ data: string }>({
+  dataType() {
+    return "geometry(MultiPolygon, 4326)";
+  },
+});
 
 // Called "countries" in the Nextbike API
 export const networks = schema.table("networks", {
@@ -92,6 +99,22 @@ export const areas = schema.table("areas", {
     srid: 4326,
   }).notNull(),
   zoom: integer("zoom").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+/** Zones per city from zone-service.nextbikecloud.net (business, no-return, etc.). */
+export const zones = schema.table("zones", {
+  id: serial("id").primaryKey(),
+  areaId: integer("area_id")
+    .notNull()
+    .references(() => areas.id, {
+      onDelete: "cascade",
+    }),
+  externalId: text("external_id").notNull().unique(),
+  zoneType: text("zone_type").notNull(),
+  properties: jsonb("properties").notNull(),
+  geometry: multipolygonGeometry("geometry").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
@@ -177,6 +200,7 @@ export const bikePositions = schema.table("bike_positions", {
 
 export type Network = typeof networks.$inferSelect;
 export type Area = typeof areas.$inferSelect;
+export type Zone = typeof zones.$inferSelect;
 export type Place = typeof places.$inferSelect;
 export type Bike = typeof bikes.$inferSelect;
 export type BikePosition = typeof bikePositions.$inferSelect;

@@ -1,9 +1,10 @@
 import { desc, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { bikes, bikePositions, networks, areas, places } from "@/db/schema";
+import { bikes, bikePositions, networks, areas, places, zones } from "@/db/schema";
 import { haversineDistance } from "./geo";
 
 const LIVE_DATA_URL = "https://api.nextbike.net/maps/nextbike-live.json";
+const ZONES_BASE_URL = "https://zone-service.nextbikecloud.net/v1/zones/city";
 const CHUNK_SIZE = 200;
 const POSITION_THRESHOLD_METERS = 100;
 
@@ -116,6 +117,23 @@ interface NextbikeCountry {
 
 interface NextbikeLiveData {
   countries: NextbikeCountry[];
+}
+
+// Zone service API (GeoJSON FeatureCollection per city)
+interface ZoneFeatureCollection {
+  type: "FeatureCollection";
+  features: Array<{
+    id: string;
+    type: "Feature";
+    geometry: { type: "MultiPolygon"; coordinates: number[][][][] };
+    properties: {
+      source?: string;
+      type: string;
+      domain?: string;
+      cityId?: string;
+      rules?: unknown[];
+    };
+  }>;
 }
 
 function point(lng: number, lat: number) {
@@ -416,7 +434,70 @@ export async function scrape() {
       });
   }
 
+  // Scrape zones for each city (area) from zone-service
+  const areaIdUidRows = await db
+    .select({ id: areas.id, uid: areas.uid })
+    .from(areas);
   const areaUidToId = new Map<number, number>();
+  for (const r of areaIdUidRows) areaUidToId.set(r.uid, r.id);
+
+  const zoneRows: {
+    areaId: number;
+    externalId: string;
+    zoneType: string;
+    properties: unknown;
+    geometry: GeoJSON.MultiPolygon;
+  }[] = [];
+  for (const area of areaIdUidRows) {
+    try {
+      const res = await fetch(`${ZONES_BASE_URL}/${area.uid}`);
+      if (!res.ok) continue;
+      const fc = (await res.json()) as ZoneFeatureCollection;
+      if (!fc?.features?.length) continue;
+      for (const f of fc.features) {
+        if (
+          f.geometry?.type !== "MultiPolygon" ||
+          !f.geometry.coordinates?.length
+        )
+          continue;
+        zoneRows.push({
+          areaId: area.id,
+          externalId: f.id,
+          zoneType: f.properties?.type ?? "Unknown",
+          properties: f.properties ?? {},
+          geometry: f.geometry,
+        });
+      }
+    } catch (e) {
+      console.warn(`[scraper] Zones for city ${area.uid} failed:`, e);
+    }
+  }
+
+  for (const z of zoneRows) {
+    const geomJson = JSON.stringify(z.geometry);
+    await db
+      .insert(zones)
+      .values({
+        areaId: z.areaId,
+        externalId: z.externalId,
+        zoneType: z.zoneType,
+        properties: z.properties,
+        geometry: sql`ST_GeomFromGeoJSON(${geomJson})`,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: zones.externalId,
+        set: {
+          areaId: sql`excluded.area_id`,
+          zoneType: sql`excluded.zone_type`,
+          properties: sql`excluded.properties`,
+          geometry: sql`excluded.geometry`,
+          updatedAt: now,
+        },
+      });
+  }
+
   const areaUids = [...new Set(placeRows.map((p) => p.areaUid))];
   const areaIdRows = await db
     .select({ id: areas.id, uid: areas.uid })
@@ -600,7 +681,7 @@ export async function scrape() {
   const numAreas = areaRows.length;
   const numPlaces = placeRows.length;
   console.log(
-    `[scraper] Done: ${numNetworks} networks, ${numAreas} areas, ${numPlaces} places, ` +
+    `[scraper] Done: ${numNetworks} networks, ${numAreas} areas, ${zoneRows.length} zones, ${numPlaces} places, ` +
       `${bikeUpserts.length} bikes, ${positionInserts.length} new positions`
   );
 }
