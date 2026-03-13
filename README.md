@@ -1,8 +1,10 @@
+![Nextbike.lol](./hero.png)
+
 # nextbike.lol
 
-nextbike.lol is a exploratory project that collects and visualizes data from [nextbike](https://nextbike.net).
+nextbike.lol is a exploratory project that collects and visualizes data from [Nextbike](https://nextbike.net).
 
-Right now the scraper is capable of collecting all bike positions over time and their corresponding places and cities. It also collects the zones in which bikes can be parked.
+It's scraping the [live endpoint of the official Nextbike API](https://api.nextbike.net/maps/nextbike-live.json) every minute and storing the data in a PostgreSQL database. Every 10 minutes a materialized view is refreshed to calculate bike movements from the scraped data.
 
 ## See bike positions across Europe
 
@@ -10,7 +12,7 @@ Right now the scraper is capable of collecting all bike positions over time and 
 
 ## Zoom in on a specific area
 
-![Example City](./example-city.png)
+![Example Zones](./example-zones.png)
 
 ## See the position history of a bike
 
@@ -27,4 +29,4 @@ Right now the scraper is capable of collecting all bike positions over time and 
 - [ ] Bike travel distance leaderboard
 - [ ] Let users “adopt” a bike and follow its adventures daily, like a Tamagotchi on wheels
 
-Inspiration from https://www.visualization.bike
+Inspired by [visualization.bike](https://www.visualization.bike)

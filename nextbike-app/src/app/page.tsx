@@ -35,7 +35,12 @@ export default function Home() {
 
   const bikeRows =
     leaderboardBikes.data?.map(
-      (row: { rank: number; bikeId: number; bikeNumber: string; totalDistanceKm: number }) => ({
+      (row: {
+        rank: number;
+        bikeId: number;
+        bikeNumber: string;
+        totalDistanceKm: number;
+      }) => ({
         rank: row.rank,
         label: `Bike #${row.bikeNumber}`,
         value: formatDistance(row.totalDistanceKm),
@@ -62,7 +67,12 @@ export default function Home() {
 
   const networkRows =
     leaderboardNetworks.data?.map(
-      (row: { rank: number; networkId: number; networkName: string; totalDistanceKm: number }) => ({
+      (row: {
+        rank: number;
+        networkId: number;
+        networkName: string;
+        totalDistanceKm: number;
+      }) => ({
         rank: row.rank,
         label: row.networkName,
         value: formatDistance(row.totalDistanceKm),
@@ -73,7 +83,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-
         {/* ── Hero ── */}
         <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-800 via-indigo-900 to-slate-900 p-8 shadow-xl sm:p-12">
           <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
@@ -83,7 +92,10 @@ export default function Home() {
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
-                <TwEmoji emoji="🟢" className="inline-block h-4 w-4 animate-pulse" />
+                <TwEmoji
+                  emoji="🟢"
+                  className="inline-block h-4 w-4 animate-pulse"
+                />
                 Live tracking · updated every 5 min
               </div>
               <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
@@ -129,12 +141,43 @@ export default function Home() {
             <CardMessage>Crunching numbers…</CardMessage>
           ) : stats.data ? (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard label="Bikes" value={stats.data.bikes} icon={TruckIcon} color="sky" />
-              <StatCard label="Stations" value={stats.data.stations} icon={BuildingOffice2Icon} color="indigo" />
-              <StatCard label="Areas" value={stats.data.areas} icon={MapPinIcon} color="violet" />
-              <StatCard label="Networks" value={stats.data.networks} icon={GlobeEuropeAfricaIcon} color="emerald" href="/networks" />
-              <StatCard label="Zones" value={stats.data.zones} icon={MapIcon} color="amber" />
-              <StatCard label="Bike positions" value={stats.data.bikePositions} icon={QueueListIcon} color="rose" />
+              <StatCard
+                label="Bikes"
+                value={stats.data.bikes}
+                icon={TruckIcon}
+                color="sky"
+              />
+              <StatCard
+                label="Stations"
+                value={stats.data.stations}
+                icon={BuildingOffice2Icon}
+                color="indigo"
+              />
+              <StatCard
+                label="Areas"
+                value={stats.data.areas}
+                icon={MapPinIcon}
+                color="violet"
+              />
+              <StatCard
+                label="Networks"
+                value={stats.data.networks}
+                icon={GlobeEuropeAfricaIcon}
+                color="emerald"
+                href="/networks"
+              />
+              <StatCard
+                label="Zones"
+                value={stats.data.zones}
+                icon={MapIcon}
+                color="amber"
+              />
+              <StatCard
+                label="Bike positions"
+                value={stats.data.bikePositions}
+                icon={QueueListIcon}
+                color="rose"
+              />
               <li className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 sm:col-span-2 lg:col-span-2">
                 <div className="inline-flex rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 p-2 text-white shadow-sm">
                   <ArrowTrendingUpIcon className="h-5 w-5" />
@@ -155,19 +198,31 @@ export default function Home() {
         {/* ── Leaderboards ── */}
         <section id="leaderboards" className="mt-10 grid gap-6 lg:grid-cols-3">
           <LeaderboardCard
-            title={<><TwEmoji emoji="🚲" className="inline h-5 w-5" /> Top bikes</>}
+            title={
+              <>
+                <TwEmoji emoji="🚲" className="inline h-5 w-5" /> Top bikes
+              </>
+            }
             subtitle="By plausible distance ridden"
             loading={leaderboardBikes.isLoading}
             rows={bikeRows}
           />
           <LeaderboardCard
-            title={<><TwEmoji emoji="📍" className="inline h-5 w-5" /> Top areas</>}
+            title={
+              <>
+                <TwEmoji emoji="📍" className="inline h-5 w-5" /> Top areas
+              </>
+            }
             subtitle="By plausible distance"
             loading={leaderboardAreas.isLoading}
             rows={areaRows}
           />
           <LeaderboardCard
-            title={<><TwEmoji emoji="🌍" className="inline h-5 w-5" /> Top networks</>}
+            title={
+              <>
+                <TwEmoji emoji="🌍" className="inline h-5 w-5" /> Top networks
+              </>
+            }
             subtitle="By plausible distance"
             loading={leaderboardNetworks.isLoading}
             rows={networkRows}
@@ -190,7 +245,6 @@ export default function Home() {
   );
 }
 
-
 function LeaderboardCard({
   title,
   subtitle,
@@ -211,7 +265,9 @@ function LeaderboardCard({
       {loading ? (
         <p className="p-5 text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="p-5 text-sm text-zinc-500 dark:text-zinc-400">No data yet</p>
+        <p className="p-5 text-sm text-zinc-500 dark:text-zinc-400">
+          No data yet
+        </p>
       ) : (
         <ol className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
           {rows.map((row) => {
@@ -227,7 +283,9 @@ function LeaderboardCard({
                     {row.rank}
                   </span>
                 )}
-                <span className="min-w-0 flex-1 truncate text-sm">{row.label}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {row.label}
+                </span>
                 <span className="text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
                   {row.value}
                 </span>
@@ -246,10 +304,7 @@ function LeaderboardCard({
                 </Link>
               </li>
             ) : (
-              <li
-                key={row.rank}
-                className="flex items-center gap-3 px-5 py-3"
-              >
+              <li key={row.rank} className="flex items-center gap-3 px-5 py-3">
                 {inner}
               </li>
             );

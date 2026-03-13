@@ -710,10 +710,10 @@ export default function BikeMap({
           clusterMaxZoom={14}
           clusterRadius={50}
         >
-          <Layer {...combinedClusterLayer} />
-          <Layer {...combinedClusterCountLayer} />
-          <Layer {...placeUnclusteredLayer} />
-          <Layer {...bikeUnclusteredLayer} />
+          <Layer {...combinedClusterLayer} layout={{ visibility: bikePopup ? "none" : "visible" }} />
+          <Layer {...combinedClusterCountLayer} layout={{ ...combinedClusterCountLayer.layout, visibility: bikePopup ? "none" : "visible" }} />
+          <Layer {...placeUnclusteredLayer} layout={{ visibility: bikePopup ? "none" : "visible" }} />
+          <Layer {...bikeUnclusteredLayer} layout={{ visibility: bikePopup ? "none" : "visible" }} />
         </Source>
 
         {/* Place popup — closeOnClick: false so one click on another feature (same or different type) switches popup */}
