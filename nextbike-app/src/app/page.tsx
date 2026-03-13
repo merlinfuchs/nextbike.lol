@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowTrendingUpIcon,
   BuildingOffice2Icon,
+  ChevronRightIcon,
   GlobeEuropeAfricaIcon,
   MapIcon,
   MapPinIcon,
@@ -34,10 +35,11 @@ export default function Home() {
 
   const bikeRows =
     leaderboardBikes.data?.map(
-      (row: { rank: number; bikeNumber: string; totalDistanceKm: number }) => ({
+      (row: { rank: number; bikeId: number; bikeNumber: string; totalDistanceKm: number }) => ({
         rank: row.rank,
         label: `Bike #${row.bikeNumber}`,
         value: formatDistance(row.totalDistanceKm),
+        href: `/bikes/${row.bikeId}`,
       })
     ) ?? [];
 
@@ -45,22 +47,26 @@ export default function Home() {
     leaderboardAreas.data?.map(
       (row: {
         rank: number;
+        areaId: number;
         areaName: string;
+        networkId: number;
         networkName: string;
         totalDistanceKm: number;
       }) => ({
         rank: row.rank,
         label: `${row.areaName} (${row.networkName})`,
         value: formatDistance(row.totalDistanceKm),
+        href: `/networks/${row.networkId}/areas/${row.areaId}`,
       })
     ) ?? [];
 
   const networkRows =
     leaderboardNetworks.data?.map(
-      (row: { rank: number; networkName: string; totalDistanceKm: number }) => ({
+      (row: { rank: number; networkId: number; networkName: string; totalDistanceKm: number }) => ({
         rank: row.rank,
         label: row.networkName,
         value: formatDistance(row.totalDistanceKm),
+        href: `/networks/${row.networkId}`,
       })
     ) ?? [];
 
@@ -125,7 +131,7 @@ export default function Home() {
               <StatCard label="Bikes" value={stats.data.bikes} icon={TruckIcon} color="sky" />
               <StatCard label="Stations" value={stats.data.stations} icon={BuildingOffice2Icon} color="indigo" />
               <StatCard label="Areas" value={stats.data.areas} icon={MapPinIcon} color="violet" />
-              <StatCard label="Networks" value={stats.data.networks} icon={GlobeEuropeAfricaIcon} color="emerald" />
+              <StatCard label="Networks" value={stats.data.networks} icon={GlobeEuropeAfricaIcon} color="emerald" href="/networks" />
               <StatCard label="Zones" value={stats.data.zones} icon={MapIcon} color="amber" />
               <StatCard label="Bike positions" value={stats.data.bikePositions} icon={QueueListIcon} color="rose" />
               <li className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 sm:col-span-2 lg:col-span-2">
@@ -185,7 +191,7 @@ function LeaderboardCard({
   title: React.ReactNode;
   subtitle: string;
   loading: boolean;
-  rows: { rank: number; label: string; value: string }[];
+  rows: { rank: number; label: string; value: string; href?: string }[];
 }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
@@ -199,27 +205,46 @@ function LeaderboardCard({
         <p className="p-5 text-sm text-zinc-500 dark:text-zinc-400">No data yet</p>
       ) : (
         <ol className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-          {rows.map((row) => (
-            <li
-              key={row.rank}
-              className="flex items-center gap-3 px-5 py-3 transition hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-            >
-              {MEDAL_EMOJI[row.rank] ? (
-                <TwEmoji
-                  emoji={MEDAL_EMOJI[row.rank]}
-                  className="h-6 w-6 shrink-0"
-                />
-              ) : (
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                  {row.rank}
+          {rows.map((row) => {
+            const inner = (
+              <>
+                {MEDAL_EMOJI[row.rank] ? (
+                  <TwEmoji
+                    emoji={MEDAL_EMOJI[row.rank]}
+                    className="h-6 w-6 shrink-0"
+                  />
+                ) : (
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                    {row.rank}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate text-sm">{row.label}</span>
+                <span className="text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+                  {row.value}
                 </span>
-              )}
-              <span className="min-w-0 flex-1 truncate text-sm">{row.label}</span>
-              <span className="text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
-                {row.value}
-              </span>
-            </li>
-          ))}
+                {row.href && (
+                  <ChevronRightIcon className="h-4 w-4 shrink-0 text-zinc-300 dark:text-zinc-600" />
+                )}
+              </>
+            );
+            return row.href ? (
+              <li key={row.rank}>
+                <Link
+                  href={row.href}
+                  className="flex items-center gap-3 px-5 py-3 transition hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                >
+                  {inner}
+                </Link>
+              </li>
+            ) : (
+              <li
+                key={row.rank}
+                className="flex items-center gap-3 px-5 py-3"
+              >
+                {inner}
+              </li>
+            );
+          })}
         </ol>
       )}
     </article>

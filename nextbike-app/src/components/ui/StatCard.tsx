@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const COLOR_MAP = {
   sky: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
   indigo: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
@@ -12,14 +14,16 @@ export function StatCard({
   value,
   icon: Icon,
   color,
+  href,
 }: {
   label: string;
   value: number | string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   color: keyof typeof COLOR_MAP;
+  href?: string;
 }) {
-  return (
-    <li className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
+  const inner = (
+    <>
       <div className={`inline-flex rounded-xl p-2 ${COLOR_MAP[color]}`}>
         <Icon className="h-5 w-5" />
       </div>
@@ -27,6 +31,22 @@ export function StatCard({
       <p className="mt-1 text-2xl font-bold">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
+    </>
+  );
+
+  if (href) {
+    return (
+      <li className="rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
+        <Link href={href} className="block p-5">
+          {inner}
+        </Link>
+      </li>
+    );
+  }
+
+  return (
+    <li className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
+      {inner}
     </li>
   );
 }

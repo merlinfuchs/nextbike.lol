@@ -641,6 +641,7 @@ export async function scrape() {
 
   const lastPositions = await db
     .select({
+      id: bikePositions.id,
       bikeId: bikePositions.bikeId,
       placeId: bikePositions.placeId,
       location: bikePositions.location,
@@ -649,12 +650,13 @@ export async function scrape() {
     .orderBy(desc(bikePositions.createdAt));
   const lastByBikeId = new Map<
     number,
-    { placeId: number; lat: number; lng: number }
+    { id: number; placeId: number; lat: number; lng: number }
   >();
   for (const row of lastPositions) {
     if (!lastByBikeId.has(row.bikeId)) {
       const loc = row.location as { x: number; y: number };
       lastByBikeId.set(row.bikeId, {
+        id: row.id,
         placeId: row.placeId,
         lat: loc.y,
         lng: loc.x,
@@ -663,6 +665,7 @@ export async function scrape() {
   }
 
   const positionInserts: (typeof bikePositions.$inferInsert)[] = [];
+  const unchangedPositionIds: number[] = [];
   for (const b of bikeRows) {
     const networkId = nameToNetworkId.get(b.networkName);
     const bikeId =
@@ -682,12 +685,26 @@ export async function scrape() {
         placeId,
         location: { x: b.lng, y: b.lat },
         createdAt: now,
+        lastSeenAt: now,
       });
+    } else if (prev) {
+      // Bike hasn't moved — update last_seen_at on its existing position row
+      unchangedPositionIds.push(prev.id);
     }
   }
 
   for (const batch of chunk(positionInserts, CHUNK_SIZE)) {
     if (batch.length > 0) await db.insert(bikePositions).values(batch);
+  }
+
+  // Bulk-update last_seen_at for stationary bikes
+  for (const batch of chunk(unchangedPositionIds, CHUNK_SIZE)) {
+    if (batch.length > 0) {
+      await db
+        .update(bikePositions)
+        .set({ lastSeenAt: now })
+        .where(inArray(bikePositions.id, batch));
+    }
   }
 
   const numNetworks = new Set(data.countries.map((c) => c.name)).size;

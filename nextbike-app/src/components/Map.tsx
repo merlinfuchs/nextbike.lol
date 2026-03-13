@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useTRPC } from "@/trpc/client";
 import type { Bike, Place, RawZone, Zone } from "@/trpc/routers/nextbike";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FocusParams } from "./MapLoader";
 import ReactMap, {
   GeolocateControl,
   Layer,
@@ -203,7 +205,11 @@ interface BikePopupInfo {
   lat: number;
 }
 
-export default function BikeMap() {
+export default function BikeMap({
+  initialFocusParams,
+}: {
+  initialFocusParams?: FocusParams;
+}) {
   const mapRef = useRef<MapRef>(null);
   const trpc = useTRPC();
   const [placePopup, setPlacePopup] = useState<PlacePopupInfo | null>(null);
@@ -217,6 +223,26 @@ export default function BikeMap() {
   const viewportDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+
+  // Parse URL focus params once on mount
+  const initialFocus = useMemo(() => {
+    if (!initialFocusParams) return null;
+    const { stationId, bikeId, lat, lng, zoom } = initialFocusParams;
+    const parsedLat = lat ? parseFloat(lat) : null;
+    const parsedLng = lng ? parseFloat(lng) : null;
+    const parsedZoom = zoom ? parseFloat(zoom) : null;
+    if (stationId) {
+      return { type: "station" as const, id: parseInt(stationId, 10), lat: parsedLat, lng: parsedLng, zoom: parsedZoom };
+    }
+    if (bikeId) {
+      return { type: "bike" as const, id: parseInt(bikeId, 10), lat: parsedLat, lng: parsedLng, zoom: parsedZoom };
+    }
+    if (parsedLat !== null && parsedLng !== null) {
+      return { type: "coords" as const, lat: parsedLat, lng: parsedLng, zoom: parsedZoom };
+    }
+    return null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateViewportFromMap = useCallback(() => {
     const map = mapRef.current?.getMap?.();
@@ -279,6 +305,14 @@ export default function BikeMap() {
         })) ?? ([] as Zone[])
       : [];
   }, [zonesQuery.data, viewport]);
+  // Fetch focused bike details when bikeId is provided in URL
+  const focusedBikeQuery = useQuery({
+    ...trpc.nextbike.getBike.queryOptions({
+      id: initialFocus?.type === "bike" ? initialFocus.id : 0,
+    }),
+    enabled: initialFocus?.type === "bike",
+  });
+
   const trailQuery = useQuery({
     ...trpc.nextbike.getBikePositions.queryOptions({
       bikeId: bikePopup?.bikeId ?? 0,
@@ -318,6 +352,31 @@ export default function BikeMap() {
     ];
     map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 600 });
   }, [trailFetched, bikePopup?.bikeId, bikePopup?.lng, bikePopup?.lat, trail]);
+
+  // Open bike popup when focused bike data arrives from URL param
+  const openedBikePopupRef = useRef(false);
+  useEffect(() => {
+    if (!focusedBikeQuery.data || openedBikePopupRef.current) return;
+    openedBikePopupRef.current = true;
+    const b = focusedBikeQuery.data;
+    setBikePopup({ bikeId: b.id, bikeNumber: String(b.number), lat: b.lat, lng: b.lng });
+    // Fly if no URL coords were provided
+    if (!initialFocus?.lat || !initialFocus?.lng) {
+      const zoom = initialFocus?.zoom ?? 16;
+      mapRef.current?.getMap?.()?.flyTo({ center: [b.lng, b.lat], zoom, duration: 800 });
+    }
+  }, [focusedBikeQuery.data, initialFocus]);
+
+  // Open station popup once places data contains the focused station
+  const openedStationPopupRef = useRef(false);
+  useEffect(() => {
+    if (!initialFocus || initialFocus.type !== "station" || openedStationPopupRef.current) return;
+    const place = places.find((p) => p.id === initialFocus.id);
+    if (place) {
+      openedStationPopupRef.current = true;
+      setPlacePopup({ place, lat: place.location.lat, lng: place.location.lng });
+    }
+  }, [places, initialFocus]);
 
   const lastUpdated =
     placesQuery.dataUpdatedAt || bikesQuery.dataUpdatedAt
@@ -502,7 +561,15 @@ export default function BikeMap() {
     <div className="relative flex-auto">
       <ReactMap
         ref={mapRef}
-        initialViewState={{ longitude: 10.45, latitude: 51.17, zoom: 4 }}
+        initialViewState={
+          initialFocus !== null && initialFocus.lat !== null && initialFocus.lng !== null
+            ? {
+                longitude: initialFocus.lng!,
+                latitude: initialFocus.lat!,
+                zoom: initialFocus.zoom ?? (initialFocus.type === "coords" ? 12 : 16),
+              }
+            : { longitude: 10.45, latitude: 51.17, zoom: 4 }
+        }
         style={{ width: "100%", height: "100%" }}
         mapStyle={MAP_STYLE}
         cursor={cursor}
@@ -600,6 +667,13 @@ export default function BikeMap() {
                   racks
                 </p>
               </div>
+              <Link
+                href={`/stations/${placePopup.place.id}`}
+                target="_blank"
+                className="mt-3 flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              >
+                View station details →
+              </Link>
             </div>
           </Popup>
         )}
@@ -645,6 +719,13 @@ export default function BikeMap() {
                   </ul>
                 </div>
               )}
+              <Link
+                href={`/bikes/${bikePopup.bikeId}`}
+                target="_blank"
+                className="mt-3 flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              >
+                View bike details →
+              </Link>
             </div>
           </Popup>
         )}

@@ -5,6 +5,7 @@ import {
   BoltIcon,
   BuildingOffice2Icon,
   ChevronRightIcon,
+  MapIcon,
   TruckIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
@@ -91,6 +92,13 @@ export default function StationPage() {
                     <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
                       {station.name}
                     </h1>
+                    <Link
+                      href={`/map?stationId=${station.id}&lat=${station.lat}&lng=${station.lng}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
+                    >
+                      <MapIcon className="h-4 w-4" />
+                      View on map
+                    </Link>
                     {station.maintenance && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-sm font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                         <WrenchScrewdriverIcon className="h-4 w-4" />

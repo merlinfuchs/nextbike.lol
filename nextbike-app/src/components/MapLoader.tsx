@@ -4,6 +4,18 @@ import dynamic from "next/dynamic";
 
 const Map = dynamic(() => import("./Map"), { ssr: false });
 
-export default function MapLoader() {
-  return <Map />;
+export type FocusParams = {
+  stationId?: string;
+  bikeId?: string;
+  lat?: string;
+  lng?: string;
+  zoom?: string;
+};
+
+export default function MapLoader({
+  initialFocusParams,
+}: {
+  initialFocusParams?: FocusParams;
+}) {
+  return <Map initialFocusParams={initialFocusParams} />;
 }

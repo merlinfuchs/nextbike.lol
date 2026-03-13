@@ -230,6 +230,7 @@ export const bikePositions = schema.table(
     srid: 4326,
   }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
   },
   (t) => [
     index("bike_positions_bike_id_idx").on(t.bikeId),

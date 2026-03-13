@@ -9,7 +9,7 @@ export async function register() {
       console.error("[scraper] Initial scrape failed:", err)
     );
 
-    cron.schedule("*/1 * * * *", () => {
+    cron.schedule("*/2 * * * *", () => {
       scrape().catch((err) =>
         console.error("[scraper] Scheduled scrape failed:", err)
       );
