@@ -267,9 +267,7 @@ export default function BikeMap() {
         : {}
     ),
     enabled:
-      showZones &&
-      viewport != null &&
-      viewport.zoom >= ZONE_ZOOM_THRESHOLD,
+      showZones && viewport != null && viewport.zoom >= ZONE_ZOOM_THRESHOLD,
     placeholderData: keepPreviousData,
   });
 
@@ -501,7 +499,7 @@ export default function BikeMap() {
   const onMouseLeave = useCallback(() => setCursor("auto"), []);
 
   return (
-    <div className="relative h-screen w-screen">
+    <div className="relative flex-auto">
       <ReactMap
         ref={mapRef}
         initialViewState={{ longitude: 10.45, latitude: 51.17, zoom: 4 }}
@@ -584,15 +582,21 @@ export default function BikeMap() {
               </p>
               <div className="mt-2 space-y-1 text-zinc-500">
                 <p>
-                  <span className="font-medium text-zinc-800">{placePopup.place.bikesAvailableToRent}</span>{" "}
+                  <span className="font-medium text-zinc-800">
+                    {placePopup.place.bikesAvailableToRent}
+                  </span>{" "}
                   available
                 </p>
                 <p>
-                  <span className="font-medium text-zinc-800">{placePopup.place.bikes}</span>{" "}
+                  <span className="font-medium text-zinc-800">
+                    {placePopup.place.bikes}
+                  </span>{" "}
                   total bikes
                 </p>
                 <p>
-                  <span className="font-medium text-zinc-800">{placePopup.place.bikeRacks}</span>{" "}
+                  <span className="font-medium text-zinc-800">
+                    {placePopup.place.bikeRacks}
+                  </span>{" "}
                   racks
                 </p>
               </div>
@@ -620,13 +624,19 @@ export default function BikeMap() {
               ) : (
                 <div className="mt-2 space-y-1 text-zinc-500">
                   <p>
-                    <span className="font-medium text-zinc-800">{trail.length}</span>{" "}
+                    <span className="font-medium text-zinc-800">
+                      {trail.length}
+                    </span>{" "}
                     position{trail.length !== 1 ? "s" : ""} recorded
                   </p>
                   <ul className="mt-1 space-y-0.5 text-xs">
                     {trail.map((pos, i) => (
                       <li key={pos.id} className="flex items-center gap-1.5">
-                        <span className={i === 0 ? "text-blue-500" : "text-zinc-300"}>
+                        <span
+                          className={
+                            i === 0 ? "text-blue-500" : "text-zinc-300"
+                          }
+                        >
                           {i === 0 ? "▶" : `${i + 1}.`}
                         </span>
                         {new Date(pos.createdAt).toLocaleString()}
@@ -643,7 +653,10 @@ export default function BikeMap() {
       {/* Status bar */}
       <div className="absolute bottom-14 right-4 flex gap-2">
         <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur">
-          <span className="font-semibold text-zinc-900">{places.length.toLocaleString()}</span> stations
+          <span className="font-semibold text-zinc-900">
+            {places.length.toLocaleString()}
+          </span>{" "}
+          stations
           {lastUpdated && (
             <span className="ml-2 text-zinc-400">
               · {lastUpdated.toLocaleTimeString()}
@@ -652,14 +665,19 @@ export default function BikeMap() {
         </div>
         {bikes.length > 0 && (
           <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur">
-            <span className="font-semibold text-blue-500">{bikes.length.toLocaleString()}</span> bikes
+            <span className="font-semibold text-blue-500">
+              {bikes.length.toLocaleString()}
+            </span>{" "}
+            bikes
           </div>
         )}
       </div>
 
       {/* Legend */}
       <div className="absolute top-3 right-3 rounded-2xl bg-white/90 px-4 py-3 text-xs text-zinc-600 shadow backdrop-blur">
-        <div className="mb-2 font-semibold text-zinc-400 tracking-wide uppercase text-[10px]">Legend</div>
+        <div className="mb-2 font-semibold text-zinc-400 tracking-wide uppercase text-[10px]">
+          Legend
+        </div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-green-400 ring-2 ring-zinc-200" />

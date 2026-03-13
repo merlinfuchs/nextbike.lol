@@ -1,4 +1,4 @@
-import { and, desc, eq, sql, sum } from "drizzle-orm";
+import { and, asc, desc, eq, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -323,6 +323,7 @@ export const nextbikeRouter = createTRPCRouter({
         .select({
           areaId: bikeMovements.areaId,
           areaName: areas.name,
+          networkId: networks.id,
           networkName: networks.name,
           totalDistanceKm: sum(bikeMovements.distanceKm),
         })
@@ -330,16 +331,451 @@ export const nextbikeRouter = createTRPCRouter({
         .innerJoin(areas, eq(bikeMovements.areaId, areas.id))
         .innerJoin(networks, eq(areas.networkId, networks.id))
         .where(eq(bikeMovements.plausible, true))
-        .groupBy(bikeMovements.areaId, areas.name, networks.name)
+        .groupBy(bikeMovements.areaId, areas.name, networks.id, networks.name)
         .orderBy(desc(sql.raw('sum("nextbike"."bike_movements"."distance_km")')))
         .limit(opts.input.limit);
 
       return rows.map((row, i) => ({
         areaId: row.areaId,
         areaName: row.areaName,
+        networkId: row.networkId,
         networkName: row.networkName,
         totalDistanceKm: Number(row.totalDistanceKm ?? 0),
         rank: i + 1,
+      }));
+    }),
+
+  getNetworks: baseProcedure.query(async () => {
+    const rows = await db.execute<{
+      id: number;
+      name: string;
+      country: string;
+      country_name: string;
+      website_url: string;
+      hotline: string;
+      available_bikes: number;
+      booked_bikes: number;
+      set_point_bikes: number;
+      area_count: number;
+      station_count: number;
+      total_distance_km: number;
+    }>(sql`
+      SELECT
+        n.id,
+        n.name,
+        n.country,
+        n.country_name,
+        n.website_url,
+        n.hotline,
+        n.available_bikes,
+        n.booked_bikes,
+        n.set_point_bikes,
+        (SELECT COUNT(*)::int FROM "nextbike"."areas" WHERE network_id = n.id) AS area_count,
+        (SELECT COUNT(*)::int FROM "nextbike"."places" p
+         JOIN "nextbike"."areas" a ON p.area_id = a.id
+         WHERE a.network_id = n.id AND p.spot = true AND p.bike = false) AS station_count,
+        COALESCE((SELECT SUM(distance_km) FROM "nextbike"."bike_movements"
+                  WHERE network_id = n.id AND plausible = true), 0) AS total_distance_km
+      FROM "nextbike"."networks" n
+      ORDER BY total_distance_km DESC
+    `);
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      country: r.country,
+      countryName: r.country_name,
+      websiteUrl: r.website_url,
+      hotline: r.hotline,
+      availableBikes: r.available_bikes,
+      bookedBikes: r.booked_bikes,
+      setPointBikes: r.set_point_bikes,
+      areaCount: r.area_count,
+      stationCount: r.station_count,
+      totalDistanceKm: Number(r.total_distance_km),
+    }));
+  }),
+
+  getNetwork: baseProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async (opts) => {
+      const rows = await db.execute<{
+        id: number;
+        name: string;
+        country: string;
+        country_name: string;
+        website_url: string;
+        hotline: string;
+        available_bikes: number;
+        booked_bikes: number;
+        set_point_bikes: number;
+        area_count: number;
+        station_count: number;
+        total_distance_km: number;
+      }>(sql`
+        SELECT
+          n.id,
+          n.name,
+          n.country,
+          n.country_name,
+          n.website_url,
+          n.hotline,
+          n.available_bikes,
+          n.booked_bikes,
+          n.set_point_bikes,
+          (SELECT COUNT(*)::int FROM "nextbike"."areas" WHERE network_id = n.id) AS area_count,
+          (SELECT COUNT(*)::int FROM "nextbike"."places" p
+           JOIN "nextbike"."areas" a ON p.area_id = a.id
+           WHERE a.network_id = n.id AND p.spot = true AND p.bike = false) AS station_count,
+          COALESCE((SELECT SUM(distance_km) FROM "nextbike"."bike_movements"
+                    WHERE network_id = n.id AND plausible = true), 0) AS total_distance_km
+        FROM "nextbike"."networks" n
+        WHERE n.id = ${opts.input.id}
+      `);
+      const r = rows[0];
+      if (!r) throw new Error("Network not found");
+      return {
+        id: r.id,
+        name: r.name,
+        country: r.country,
+        countryName: r.country_name,
+        websiteUrl: r.website_url,
+        hotline: r.hotline,
+        availableBikes: r.available_bikes,
+        bookedBikes: r.booked_bikes,
+        setPointBikes: r.set_point_bikes,
+        areaCount: r.area_count,
+        stationCount: r.station_count,
+        totalDistanceKm: Number(r.total_distance_km),
+      };
+    }),
+
+  getNetworkAreas: baseProcedure
+    .input(z.object({ networkId: z.number() }))
+    .query(async (opts) => {
+      const rows = await db.execute<{
+        id: number;
+        name: string;
+        available_bikes: number;
+        set_point_bikes: number;
+        num_places: number;
+        booked_bikes: number;
+        total_distance_km: number;
+      }>(sql`
+        SELECT
+          a.id,
+          a.name,
+          a.available_bikes,
+          a.set_point_bikes,
+          a.num_places,
+          a.booked_bikes,
+          COALESCE((SELECT SUM(distance_km) FROM "nextbike"."bike_movements"
+                    WHERE area_id = a.id AND plausible = true), 0) AS total_distance_km
+        FROM "nextbike"."areas" a
+        WHERE a.network_id = ${opts.input.networkId}
+        ORDER BY total_distance_km DESC
+      `);
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        availableBikes: r.available_bikes,
+        setPointBikes: r.set_point_bikes,
+        numPlaces: r.num_places,
+        bookedBikes: r.booked_bikes,
+        totalDistanceKm: Number(r.total_distance_km),
+      }));
+    }),
+
+  getArea: baseProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async (opts) => {
+      const rows = await db.execute<{
+        id: number;
+        uid: number;
+        name: string;
+        available_bikes: number;
+        set_point_bikes: number;
+        num_places: number;
+        booked_bikes: number;
+        website_url: string;
+        network_id: number;
+        network_name: string;
+        country: string;
+        country_name: string;
+      }>(sql`
+        SELECT
+          a.id, a.uid, a.name, a.available_bikes, a.set_point_bikes,
+          a.num_places, a.booked_bikes, a.website_url,
+          n.id AS network_id, n.name AS network_name,
+          n.country, n.country_name
+        FROM "nextbike"."areas" a
+        JOIN "nextbike"."networks" n ON n.id = a.network_id
+        WHERE a.id = ${opts.input.id}
+      `);
+      const r = rows[0];
+      if (!r) throw new Error("Area not found");
+      return {
+        id: r.id,
+        uid: r.uid,
+        name: r.name,
+        availableBikes: r.available_bikes,
+        setPointBikes: r.set_point_bikes,
+        numPlaces: r.num_places,
+        bookedBikes: r.booked_bikes,
+        websiteUrl: r.website_url,
+        networkId: r.network_id,
+        networkName: r.network_name,
+        country: r.country,
+        countryName: r.country_name,
+      };
+    }),
+
+  getAreaStations: baseProcedure
+    .input(z.object({ areaId: z.number() }))
+    .query(async (opts) => {
+      return db
+        .select({
+          id: places.id,
+          name: places.name,
+          address: places.address,
+          bikes: places.bikes,
+          bikesAvailableToRent: places.bikesAvailableToRent,
+          bikeRacks: places.bikeRacks,
+          freeRacks: places.freeRacks,
+          bookedBikes: places.bookedBikes,
+          maintenance: places.maintenance,
+          activePlace: places.activePlace,
+        })
+        .from(places)
+        .where(
+          and(
+            eq(places.areaId, opts.input.areaId),
+            eq(places.spot, true),
+            eq(places.bike, false)
+          )
+        )
+        .orderBy(desc(places.bikesAvailableToRent), asc(places.name))
+        .limit(300);
+    }),
+
+  getAreaBikes: baseProcedure
+    .input(z.object({ areaId: z.number() }))
+    .query(async (opts) => {
+      const rows = await db
+        .select({
+          id: bikes.id,
+          number: bikes.number,
+          bikeType: bikes.bikeType,
+          state: bikes.state,
+          active: bikes.active,
+          electricLock: bikes.electricLock,
+          pedelecBattery: bikes.pedelecBattery,
+          updatedAt: bikes.updatedAt,
+          totalDistanceKm: sql<number>`coalesce(sum(${bikeMovements.distanceKm}) filter (where ${bikeMovements.plausible} = true), 0)`.as("total_distance_km"),
+        })
+        .from(bikes)
+        .innerJoin(places, eq(bikes.placeId, places.id))
+        .leftJoin(bikeMovements, eq(bikes.id, bikeMovements.bikeId))
+        .where(and(eq(places.areaId, opts.input.areaId), eq(places.bike, true)))
+        .groupBy(bikes.id)
+        .orderBy(desc(sql.raw("total_distance_km")))
+        .limit(300);
+      return rows.map((r) => ({ ...r, totalDistanceKm: Number(r.totalDistanceKm) }));
+    }),
+
+  getStation: baseProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async (opts) => {
+      const rows = await db.execute<{
+        id: number;
+        uid: number;
+        name: string;
+        address: string | null;
+        bikes_count: number;
+        bikes_available_to_rent: number;
+        booked_bikes: number;
+        bike_racks: number;
+        free_racks: number;
+        special_racks: number;
+        free_special_racks: number;
+        rack_locks: boolean;
+        maintenance: boolean;
+        active_place: number;
+        terminal_type: string;
+        place_type: string;
+        lat: number;
+        lng: number;
+        area_id: number;
+        area_name: string;
+        network_id: number;
+        network_name: string;
+        country: string;
+        country_name: string;
+      }>(sql`
+        SELECT
+          p.id, p.uid, p.name, p.address,
+          p.bikes AS bikes_count,
+          p.bikes_available_to_rent,
+          p.booked_bikes, p.bike_racks, p.free_racks,
+          p.special_racks, p.free_special_racks, p.rack_locks,
+          p.maintenance, p.active_place,
+          p.terminal_type, p.place_type,
+          ST_Y(p.location) AS lat, ST_X(p.location) AS lng,
+          a.id AS area_id, a.name AS area_name,
+          n.id AS network_id, n.name AS network_name,
+          n.country, n.country_name
+        FROM "nextbike"."places" p
+        JOIN "nextbike"."areas" a ON a.id = p.area_id
+        JOIN "nextbike"."networks" n ON n.id = a.network_id
+        WHERE p.id = ${opts.input.id} AND p.spot = true AND p.bike = false
+      `);
+      const r = rows[0];
+      if (!r) throw new Error("Station not found");
+
+      const parkedBikes = await db
+        .select({
+          id: bikes.id,
+          number: bikes.number,
+          bikeType: bikes.bikeType,
+          state: bikes.state,
+          active: bikes.active,
+          electricLock: bikes.electricLock,
+          pedelecBattery: bikes.pedelecBattery,
+          updatedAt: bikes.updatedAt,
+          totalDistanceKm: sql<number>`coalesce(sum(${bikeMovements.distanceKm}) filter (where ${bikeMovements.plausible} = true), 0)`.as("total_distance_km"),
+        })
+        .from(bikes)
+        .leftJoin(bikeMovements, eq(bikes.id, bikeMovements.bikeId))
+        .where(eq(bikes.placeId, opts.input.id))
+        .groupBy(bikes.id)
+        .orderBy(desc(sql.raw("total_distance_km")));
+
+      return {
+        id: r.id,
+        uid: r.uid,
+        name: r.name,
+        address: r.address ?? undefined,
+        bikesCount: r.bikes_count,
+        bikesAvailableToRent: r.bikes_available_to_rent,
+        bookedBikes: r.booked_bikes,
+        bikeRacks: r.bike_racks,
+        freeRacks: r.free_racks,
+        specialRacks: r.special_racks,
+        freeSpecialRacks: r.free_special_racks,
+        rackLocks: r.rack_locks,
+        maintenance: r.maintenance,
+        activePlace: r.active_place,
+        terminalType: r.terminal_type,
+        placeType: r.place_type,
+        lat: r.lat,
+        lng: r.lng,
+        areaId: r.area_id,
+        areaName: r.area_name,
+        networkId: r.network_id,
+        networkName: r.network_name,
+        country: r.country,
+        countryName: r.country_name,
+        bikes: parkedBikes.map((b) => ({ ...b, totalDistanceKm: Number(b.totalDistanceKm) })),
+      };
+    }),
+
+  getBike: baseProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async (opts) => {
+      const rows = await db.execute<{
+        id: number;
+        number: string;
+        bike_type: number;
+        state: string;
+        active: boolean;
+        electric_lock: boolean;
+        pedelec_battery: number | null;
+        created_at: Date;
+        updated_at: Date;
+        place_id: number;
+        place_name: string;
+        place_address: string | null;
+        place_spot: boolean;
+        place_bike: boolean;
+        lat: number;
+        lng: number;
+        area_id: number;
+        area_name: string;
+        network_id: number;
+        network_name: string;
+        country: string;
+        country_name: string;
+        total_distance_km: number;
+        trip_count: number;
+      }>(sql`
+        SELECT
+          b.id, b.number, b.bike_type, b.state, b.active, b.electric_lock,
+          b.pedelec_battery, b.created_at, b.updated_at,
+          p.id AS place_id, p.name AS place_name, p.address AS place_address,
+          p.spot AS place_spot, p.bike AS place_bike,
+          ST_Y(p.location) AS lat, ST_X(p.location) AS lng,
+          a.id AS area_id, a.name AS area_name,
+          n.id AS network_id, n.name AS network_name, n.country, n.country_name,
+          COALESCE((SELECT SUM(distance_km) FROM "nextbike"."bike_movements"
+                    WHERE bike_id = b.id AND plausible = true), 0) AS total_distance_km,
+          (SELECT COUNT(*)::int FROM "nextbike"."bike_movements"
+           WHERE bike_id = b.id AND plausible = true) AS trip_count
+        FROM "nextbike"."bikes" b
+        JOIN "nextbike"."places" p ON p.id = b.place_id
+        JOIN "nextbike"."areas" a ON a.id = p.area_id
+        JOIN "nextbike"."networks" n ON n.id = a.network_id
+        WHERE b.id = ${opts.input.id}
+      `);
+      const r = rows[0];
+      if (!r) throw new Error("Bike not found");
+      return {
+        id: r.id,
+        number: r.number,
+        bikeType: r.bike_type,
+        state: r.state,
+        active: r.active,
+        electricLock: r.electric_lock,
+        pedelecBattery: r.pedelec_battery ?? undefined,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        placeId: r.place_id,
+        placeName: r.place_name,
+        placeAddress: r.place_address ?? undefined,
+        placeIsStation: r.place_spot && !r.place_bike,
+        lat: r.lat,
+        lng: r.lng,
+        areaId: r.area_id,
+        areaName: r.area_name,
+        networkId: r.network_id,
+        networkName: r.network_name,
+        country: r.country,
+        countryName: r.country_name,
+        totalDistanceKm: Number(r.total_distance_km),
+        tripCount: r.trip_count,
+      };
+    }),
+
+  getBikeRecentMovements: baseProcedure
+    .input(z.object({ bikeId: z.number(), limit: z.number().min(1).max(100).default(20) }))
+    .query(async (opts) => {
+      const rows = await db.execute<{
+        distance_km: number;
+        start_time: Date;
+        end_time: Date;
+        duration_seconds: number;
+        plausible: boolean;
+      }>(sql`
+        SELECT distance_km, start_time, end_time, duration_seconds, plausible
+        FROM "nextbike"."bike_movements"
+        WHERE bike_id = ${opts.input.bikeId}
+        ORDER BY start_time DESC
+        LIMIT ${opts.input.limit}
+      `);
+      return rows.map((r) => ({
+        distanceKm: Number(r.distance_km),
+        startTime: r.start_time,
+        endTime: r.end_time,
+        durationSeconds: Number(r.duration_seconds),
+        plausible: r.plausible,
       }));
     }),
 

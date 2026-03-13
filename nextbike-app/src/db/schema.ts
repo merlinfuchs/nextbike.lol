@@ -83,7 +83,7 @@ export const areas = schema.table(
   websiteUrl: text("website_url").notNull(),
   break: boolean("break").notNull().default(false),
   numPlaces: integer("num_places").notNull().default(0),
-  bookesBikes: integer("booked_bikes").notNull().default(0),
+  bookedBikes: integer("booked_bikes").notNull().default(0),
   setPointBikes: integer("set_point_bikes").notNull().default(0),
   availableBikes: integer("available_bikes").notNull().default(0),
   returnToOfficialOnly: boolean("return_to_official_only").notNull(),
