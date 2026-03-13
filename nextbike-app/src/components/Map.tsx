@@ -1,6 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "@/trpc/client";
+import type { Bike, Place, Zone } from "@/trpc/routers/nextbike";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import type { MapMouseEvent } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMap, {
   GeolocateControl,
@@ -12,18 +16,25 @@ import ReactMap, {
   type LayerProps,
   type MapRef,
 } from "react-map-gl/maplibre";
-import type { MapMouseEvent } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-import type {
-  Bike,
-  BikePosition,
-  Place,
-  Zone,
-} from "@/trpc/routers/nextbike";
-import { useTRPC } from "@/trpc/client";
 
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+
+const ZONE_ZOOM_THRESHOLD = 10;
+const VIEWPORT_DEBOUNCE_MS = 300;
+
+function roundBounds(
+  b: { minLng: number; minLat: number; maxLng: number; maxLat: number },
+  decimals = 2
+) {
+  const r = (n: number) => Math.round(n * 10 ** decimals) / 10 ** decimals;
+  return {
+    minLng: r(b.minLng),
+    minLat: r(b.minLat),
+    maxLng: r(b.maxLng),
+    maxLat: r(b.maxLat),
+  };
+}
 
 // --- layer definitions (single combined source: places-and-bikes) ---
 
@@ -34,7 +45,17 @@ const combinedClusterLayer: LayerProps = {
   filter: ["has", "point_count"],
   paint: {
     "circle-color": "#6366f1",
-    "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 28, 200, 34],
+    "circle-radius": [
+      "step",
+      ["get", "point_count"],
+      16,
+      10,
+      22,
+      50,
+      28,
+      200,
+      34,
+    ],
     "circle-opacity": 0.85,
   },
 };
@@ -56,7 +77,11 @@ const placeUnclusteredLayer: LayerProps = {
   id: "place-unclustered",
   type: "circle",
   source: "places-and-bikes",
-  filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "featureType"], "place"]],
+  filter: [
+    "all",
+    ["!", ["has", "point_count"]],
+    ["==", ["get", "featureType"], "place"],
+  ],
   paint: {
     "circle-color": [
       "case",
@@ -76,7 +101,11 @@ const bikeUnclusteredLayer: LayerProps = {
   id: "bike-unclustered",
   type: "circle",
   source: "places-and-bikes",
-  filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "featureType"], "bike"]],
+  filter: [
+    "all",
+    ["!", ["has", "point_count"]],
+    ["==", ["get", "featureType"], "bike"],
+  ],
   paint: {
     "circle-color": "#3b82f6",
     "circle-radius": 5,
@@ -180,6 +209,48 @@ export default function BikeMap() {
   const [placePopup, setPlacePopup] = useState<PlacePopupInfo | null>(null);
   const [bikePopup, setBikePopup] = useState<BikePopupInfo | null>(null);
   const [cursor, setCursor] = useState("auto");
+  const [viewport, setViewport] = useState<{
+    zoom: number;
+    bounds: { minLng: number; minLat: number; maxLng: number; maxLat: number };
+  } | null>(null);
+  const viewportDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  const updateViewportFromMap = useCallback(() => {
+    const map = mapRef.current?.getMap?.();
+    if (!map) return;
+    const bounds = map.getBounds();
+    const zoom = map.getZoom();
+    setViewport({
+      zoom,
+      bounds: {
+        minLng: bounds.getWest(),
+        minLat: bounds.getSouth(),
+        maxLng: bounds.getEast(),
+        maxLat: bounds.getNorth(),
+      },
+    });
+  }, []);
+
+  const onMapLoad = useCallback(() => {
+    updateViewportFromMap();
+  }, [updateViewportFromMap]);
+
+  const onMapMoveEnd = useCallback(() => {
+    if (viewportDebounceRef.current) clearTimeout(viewportDebounceRef.current);
+    viewportDebounceRef.current = setTimeout(() => {
+      viewportDebounceRef.current = null;
+      updateViewportFromMap();
+    }, VIEWPORT_DEBOUNCE_MS);
+  }, [updateViewportFromMap]);
+
+  useEffect(() => {
+    return () => {
+      if (viewportDebounceRef.current)
+        clearTimeout(viewportDebounceRef.current);
+    };
+  }, []);
 
   const placesQuery = useQuery(
     trpc.nextbike.getPlaces.queryOptions({ excludeBikes: true })
@@ -187,8 +258,21 @@ export default function BikeMap() {
   const bikesQuery = useQuery(
     trpc.nextbike.getBikes.queryOptions({ excludeParked: true })
   );
-  const zonesQuery = useQuery(trpc.nextbike.getZones.queryOptions());
-  const zones: Zone[] = zonesQuery.data ?? [];
+
+  const zonesQuery = useQuery({
+    ...trpc.nextbike.getZones.queryOptions(
+      viewport != null && viewport.zoom >= ZONE_ZOOM_THRESHOLD
+        ? { bounds: roundBounds(viewport.bounds) }
+        : {}
+    ),
+    enabled: viewport != null && viewport.zoom >= ZONE_ZOOM_THRESHOLD,
+    placeholderData: keepPreviousData,
+  });
+
+  const zones: Zone[] =
+    viewport != null && viewport.zoom >= ZONE_ZOOM_THRESHOLD
+      ? zonesQuery.data ?? []
+      : [];
   const trailQuery = useQuery({
     ...trpc.nextbike.getBikePositions.queryOptions({
       bikeId: bikePopup?.bikeId ?? 0,
@@ -224,10 +308,15 @@ export default function BikeMap() {
   const zonesGeoJSON = useMemo(() => {
     const isWorldBbox = (ring: number[][]) => {
       if (!ring?.length) return false;
-      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      let minLng = Infinity,
+        maxLng = -Infinity,
+        minLat = Infinity,
+        maxLat = -Infinity;
       for (const [lng, lat] of ring) {
-        minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
-        minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
       }
       return minLng <= -179 && maxLng >= 179 && minLat <= -89 && maxLat >= 89;
     };
@@ -323,11 +412,7 @@ export default function BikeMap() {
     if (!map) return;
 
     const features = map.queryRenderedFeatures(e.point, {
-      layers: [
-        "combined-clusters",
-        "place-unclustered",
-        "bike-unclustered",
-      ],
+      layers: ["combined-clusters", "place-unclustered", "bike-unclustered"],
     });
 
     if (!features.length) {
@@ -342,7 +427,9 @@ export default function BikeMap() {
     // Combined cluster → zoom in
     if (feature.layer.id === "combined-clusters") {
       const clusterId = feature.properties?.cluster_id as number;
-      const source = map.getSource("places-and-bikes") as maplibregl.GeoJSONSource;
+      const source = map.getSource(
+        "places-and-bikes"
+      ) as maplibregl.GeoJSONSource;
       source
         .getClusterExpansionZoom(clusterId)
         .then((zoom) => map.easeTo({ center: [coords[0], coords[1]], zoom }))
@@ -388,8 +475,8 @@ export default function BikeMap() {
           "place-unclustered",
           "bike-unclustered",
         ]}
-        // onLoad={fetchForViewport}
-        // onMoveEnd={fetchForViewport}
+        onLoad={onMapLoad}
+        onMoveEnd={onMapMoveEnd}
         onClick={onClick}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}

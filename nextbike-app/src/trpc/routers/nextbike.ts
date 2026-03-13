@@ -181,27 +181,46 @@ export const nextbikeRouter = createTRPCRouter({
       })) as BikePosition[];
     }),
 
-  getZones: baseProcedure.query(async () => {
-    const rows = await db
-      .select({
-        id: zones.id,
-        areaId: zones.areaId,
-        externalId: zones.externalId,
-        zoneType: zones.zoneType,
-        properties: zones.properties,
-        geometryJson: sql<string>`ST_AsGeoJSON("nextbike"."zones"."geometry")`.as(
-          "geometry_json"
-        ),
+  getZones: baseProcedure
+    .input(
+      z.object({
+        bounds: z
+          .object({
+            minLng: z.number(),
+            minLat: z.number(),
+            maxLng: z.number(),
+            maxLat: z.number(),
+          })
+          .optional(),
       })
-      .from(zones);
+    )
+    .query(async (opts) => {
+      const bounds = opts.input.bounds;
+      if (!bounds) return [] as Zone[];
 
-    return rows.map((row) => ({
-      id: row.id,
-      areaId: row.areaId,
-      externalId: row.externalId,
-      zoneType: row.zoneType,
-      properties: row.properties as Record<string, unknown>,
-      geometry: JSON.parse(row.geometryJson) as GeoJSON.MultiPolygon,
-    })) as Zone[];
-  }),
+      const rows = await db
+        .select({
+          id: zones.id,
+          areaId: zones.areaId,
+          externalId: zones.externalId,
+          zoneType: zones.zoneType,
+          properties: zones.properties,
+          geometryJson: sql<string>`ST_AsGeoJSON("nextbike"."zones"."geometry")`.as(
+            "geometry_json"
+          ),
+        })
+        .from(zones)
+        .where(
+          sql`ST_Intersects("nextbike"."zones"."geometry", ST_MakeEnvelope(${bounds.minLng}, ${bounds.minLat}, ${bounds.maxLng}, ${bounds.maxLat}, 4326))`
+        );
+
+      return rows.map((row) => ({
+        id: row.id,
+        areaId: row.areaId,
+        externalId: row.externalId,
+        zoneType: row.zoneType,
+        properties: row.properties as Record<string, unknown>,
+        geometry: JSON.parse(row.geometryJson) as GeoJSON.MultiPolygon,
+      })) as Zone[];
+    }),
 });
