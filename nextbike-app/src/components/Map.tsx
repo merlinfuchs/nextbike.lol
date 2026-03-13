@@ -641,7 +641,7 @@ export default function BikeMap() {
       </ReactMap>
 
       {/* Status bar */}
-      <div className="absolute bottom-8 right-4 flex gap-2">
+      <div className="absolute bottom-14 right-4 flex gap-2">
         <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur">
           <span className="font-semibold text-zinc-900">{places.length.toLocaleString()}</span> stations
           {lastUpdated && (
@@ -658,7 +658,7 @@ export default function BikeMap() {
       </div>
 
       {/* Legend */}
-      <div className="absolute top-16 right-3 rounded-2xl bg-white/90 px-4 py-3 text-xs text-zinc-600 shadow backdrop-blur">
+      <div className="absolute top-3 right-3 rounded-2xl bg-white/90 px-4 py-3 text-xs text-zinc-600 shadow backdrop-blur">
         <div className="mb-2 font-semibold text-zinc-400 tracking-wide uppercase text-[10px]">Legend</div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
