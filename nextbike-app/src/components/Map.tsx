@@ -117,24 +117,35 @@ const bikeUnclusteredLayer: LayerProps = {
   },
 };
 
-// Zones: semi-transparent fill, color by zone type
+// Zones: semi-transparent fill, color by zone type (PolicyZones further split by fee)
 const zonesFillLayer: LayerProps = {
   id: "zones-fill",
   type: "fill",
   source: "zones",
   paint: {
     "fill-color": [
-      "match",
-      ["get", "zoneType"],
-      "BusinessZone",
-      "#22c55e",
-      "NoBusinessZone",
-      "#94a3b8",
-      "PolicyZone",
-      "#f59e0b",
-      "#a78bfa",
+      "case",
+      ["==", ["get", "zoneType"], "BusinessZone"],
+      "#00e676",
+      ["==", ["get", "zoneType"], "NoBusinessZone"],
+      "#90a4ae",
+      [
+        "all",
+        ["==", ["get", "zoneType"], "PolicyZone"],
+        ["==", ["get", "fee"], 0],
+      ],
+      "#00e676",
+      [
+        "all",
+        ["==", ["get", "zoneType"], "PolicyZone"],
+        ["<=", ["get", "fee"], 100],
+      ],
+      "#ffca28",
+      ["==", ["get", "zoneType"], "PolicyZone"],
+      "#ff1744",
+      "#e040fb",
     ],
-    "fill-opacity": 0.1,
+    "fill-opacity": 0.2,
     "fill-outline-color": "rgba(0,0,0,0.15)",
   },
 };
@@ -232,16 +243,33 @@ export default function BikeMap({
     const parsedLng = lng ? parseFloat(lng) : null;
     const parsedZoom = zoom ? parseFloat(zoom) : null;
     if (stationId) {
-      return { type: "station" as const, id: parseInt(stationId, 10), lat: parsedLat, lng: parsedLng, zoom: parsedZoom };
+      return {
+        type: "station" as const,
+        id: parseInt(stationId, 10),
+        lat: parsedLat,
+        lng: parsedLng,
+        zoom: parsedZoom,
+      };
     }
     if (bikeId) {
-      return { type: "bike" as const, id: parseInt(bikeId, 10), lat: parsedLat, lng: parsedLng, zoom: parsedZoom };
+      return {
+        type: "bike" as const,
+        id: parseInt(bikeId, 10),
+        lat: parsedLat,
+        lng: parsedLng,
+        zoom: parsedZoom,
+      };
     }
     if (parsedLat !== null && parsedLng !== null) {
-      return { type: "coords" as const, lat: parsedLat, lng: parsedLng, zoom: parsedZoom };
+      return {
+        type: "coords" as const,
+        lat: parsedLat,
+        lng: parsedLng,
+        zoom: parsedZoom,
+      };
     }
     return null;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateViewportFromMap = useCallback(() => {
@@ -359,22 +387,38 @@ export default function BikeMap({
     if (!focusedBikeQuery.data || openedBikePopupRef.current) return;
     openedBikePopupRef.current = true;
     const b = focusedBikeQuery.data;
-    setBikePopup({ bikeId: b.id, bikeNumber: String(b.number), lat: b.lat, lng: b.lng });
+    setBikePopup({
+      bikeId: b.id,
+      bikeNumber: String(b.number),
+      lat: b.lat,
+      lng: b.lng,
+    });
     // Fly if no URL coords were provided
     if (!initialFocus?.lat || !initialFocus?.lng) {
       const zoom = initialFocus?.zoom ?? 16;
-      mapRef.current?.getMap?.()?.flyTo({ center: [b.lng, b.lat], zoom, duration: 800 });
+      mapRef.current
+        ?.getMap?.()
+        ?.flyTo({ center: [b.lng, b.lat], zoom, duration: 800 });
     }
   }, [focusedBikeQuery.data, initialFocus]);
 
   // Open station popup once places data contains the focused station
   const openedStationPopupRef = useRef(false);
   useEffect(() => {
-    if (!initialFocus || initialFocus.type !== "station" || openedStationPopupRef.current) return;
+    if (
+      !initialFocus ||
+      initialFocus.type !== "station" ||
+      openedStationPopupRef.current
+    )
+      return;
     const place = places.find((p) => p.id === initialFocus.id);
     if (place) {
       openedStationPopupRef.current = true;
-      setPlacePopup({ place, lat: place.location.lat, lng: place.location.lng });
+      setPlacePopup({
+        place,
+        lat: place.location.lat,
+        lng: place.location.lng,
+      });
     }
   }, [places, initialFocus]);
 
@@ -422,16 +466,21 @@ export default function BikeMap({
     });
     return {
       type: "FeatureCollection" as const,
-      features: filtered.map((z) => ({
-        type: "Feature" as const,
-        geometry: z.geometry,
-        properties: {
-          id: z.id,
-          areaId: z.areaId,
-          externalId: z.externalId,
-          zoneType: z.zoneType,
-        },
-      })),
+      features: filtered.map((z) => {
+        const rules = (z.properties as { rules?: { fee?: number }[] }).rules;
+        const fee = rules && rules.length > 0 ? rules[0].fee ?? 0 : 0;
+        return {
+          type: "Feature" as const,
+          geometry: z.geometry,
+          properties: {
+            id: z.id,
+            areaId: z.areaId,
+            externalId: z.externalId,
+            zoneType: z.zoneType,
+            fee,
+          },
+        };
+      }),
     };
   }, [zones]);
 
@@ -584,18 +633,24 @@ export default function BikeMap({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
-            <span className="text-sm font-medium text-zinc-500">Loading map data…</span>
+            <span className="text-sm font-medium text-zinc-500">
+              Loading map data…
+            </span>
           </div>
         </div>
       )}
       <ReactMap
         ref={mapRef}
         initialViewState={
-          initialFocus !== null && initialFocus.lat !== null && initialFocus.lng !== null
+          initialFocus !== null &&
+          initialFocus.lat !== null &&
+          initialFocus.lng !== null
             ? {
                 longitude: initialFocus.lng!,
                 latitude: initialFocus.lat!,
-                zoom: initialFocus.zoom ?? (initialFocus.type === "coords" ? 12 : 16),
+                zoom:
+                  initialFocus.zoom ??
+                  (initialFocus.type === "coords" ? 12 : 16),
               }
             : { longitude: 10.45, latitude: 51.17, zoom: 4 }
         }
@@ -620,7 +675,7 @@ export default function BikeMap({
         {/* Zones (semi-transparent fill by type) — below points so stations/bikes render on top */}
         {showZones && (
           <Source id="zones" type="geojson" data={zonesGeoJSON}>
-            <Layer {...zonesFillLayer} />
+            <Layer {...zonesFillLayer} beforeId="combined-clusters" />
           </Source>
         )}
 
@@ -761,26 +816,31 @@ export default function BikeMap({
       </ReactMap>
 
       {/* Status bar */}
-      <div className="absolute bottom-14 right-4 flex gap-2">
-        <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur">
-          <span className="font-semibold text-zinc-900">
-            {places.length.toLocaleString()}
-          </span>{" "}
-          stations
+      <div className="absolute bottom-14 right-4">
+        <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur flex items-center gap-2">
+          <span>
+            <span className="font-semibold text-zinc-900">
+              {places.length.toLocaleString()}
+            </span>{" "}
+            stations
+          </span>
+          {bikes.length > 0 && (
+            <>
+              <span className="text-zinc-300">·</span>
+              <span>
+                <span className="font-semibold text-zinc-900">
+                  {bikes.length.toLocaleString()}
+                </span>{" "}
+                bikes
+              </span>
+            </>
+          )}
           {lastUpdated && (
-            <span className="ml-2 text-zinc-400">
+            <span className="text-zinc-400">
               · {lastUpdated.toLocaleTimeString()}
             </span>
           )}
         </div>
-        {bikes.length > 0 && (
-          <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur">
-            <span className="font-semibold text-blue-500">
-              {bikes.length.toLocaleString()}
-            </span>{" "}
-            bikes
-          </div>
-        )}
       </div>
 
       {/* Legend */}
@@ -820,15 +880,19 @@ export default function BikeMap({
             <div className="mt-2 space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="inline-block h-3 w-3 shrink-0 rounded bg-green-500/30 border border-green-500/50" />
-                Business
+                Free return
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 shrink-0 rounded bg-amber-500/30 border border-amber-400/50" />
+                Restricted
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 shrink-0 rounded bg-red-500/30 border border-red-400/50" />
+                No return
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-block h-3 w-3 shrink-0 rounded bg-slate-400/30 border border-slate-400/50" />
                 No business
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 shrink-0 rounded bg-amber-500/30 border border-amber-400/50" />
-                Policy zone
               </div>
             </div>
           )}

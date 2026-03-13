@@ -25,9 +25,9 @@ export async function register() {
         );
 
     refreshBikeMovements();
-    cron.schedule("*/30 * * * *", refreshBikeMovements);
+    cron.schedule("*/10 * * * *", refreshBikeMovements);
 
     console.log("[cron] Scraper scheduled every 1 minute");
-    console.log("[cron] bike_movements refresh scheduled every 30 minutes");
+    console.log("[cron] bike_movements refresh scheduled every 10 minutes");
   }
 }
