@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nextbike}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nextbike}
+      POSTGRES_DB: ${POSTGRES_DB:-nextbike}
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    image: ghcr.io/merlinfuchs/nextbike-lol:latest
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nextbike}:${POSTGRES_PASSWORD:-nextbike}@db:5432/${POSTGRES_DB:-nextbike}
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

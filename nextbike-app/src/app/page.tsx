@@ -113,8 +113,9 @@ export default function Home() {
 
             <div className="relative hidden shrink-0 sm:block">
               <div className="absolute inset-0 rounded-full bg-indigo-400/20 blur-2xl scale-110" />
-              <TwEmoji
-                emoji="🚲"
+              <img
+                src="/cyclist.svg"
+                alt="Cyclist"
                 className="relative h-44 w-44 drop-shadow-2xl lg:h-56 lg:w-56"
               />
             </div>
