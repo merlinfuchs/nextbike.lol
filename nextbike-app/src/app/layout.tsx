@@ -18,7 +18,12 @@ export const metadata: Metadata = {
   title: "nextbike.lol",
   description:
     "Real-time Nextbike fleet tracker — see which bikes, stations and networks clock the most km.",
-  icons: { icon: "/cyclist.ico" },
+  icons: {
+    icon: [
+      { url: "/cyclist.svg", type: "image/svg+xml" },
+      { url: "/cyclist.ico", type: "image/x-icon" },
+    ],
+  },
 };
 
 export default function RootLayout({

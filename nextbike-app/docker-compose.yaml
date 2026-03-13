@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgis/postgis:18-3.6
+    image: postgis/postgis:16-3.4
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nextbike}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nextbike}
@@ -8,7 +8,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
   postgres_data:

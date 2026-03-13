@@ -43,7 +43,7 @@ SELECT
   segments.start_time,
   segments.end_time,
   segments.duration_seconds,
-  (segments.duration_seconds > 0 AND (segments.distance_km / (segments.duration_seconds / 3600.0)) <= 60) AS plausible,
+  (segments.duration_seconds > 0 AND (segments.distance_km / (segments.duration_seconds / 3600.0)) <= 40) AS plausible,
   segments.area_id,
   segments.network_id
 FROM segments
