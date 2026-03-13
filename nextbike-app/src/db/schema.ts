@@ -3,13 +3,14 @@ import {
   bigserial,
   boolean,
   customType,
+  geometry,
+  index,
   integer,
+  jsonb,
   pgSchema,
+  serial,
   text,
   timestamp,
-  geometry,
-  serial,
-  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const schema = pgSchema("nextbike");
@@ -63,10 +64,12 @@ export const networks = schema.table("networks", {
 });
 
 // Called "cities" in the Nextbike API
-export const areas = schema.table("areas", {
-  id: serial("id").primaryKey(),
-  uid: integer("uid").notNull().unique(),
-  networkId: integer("network_id")
+export const areas = schema.table(
+  "areas",
+  {
+    id: serial("id").primaryKey(),
+    uid: integer("uid").notNull().unique(),
+    networkId: integer("network_id")
     .notNull()
     .references(() => networks.id, {
       onDelete: "cascade",
@@ -101,10 +104,14 @@ export const areas = schema.table("areas", {
   zoom: integer("zoom").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
+  },
+  (t) => [index("areas_network_id_idx").on(t.networkId)]
+);
 
 /** Zones per city from zone-service.nextbikecloud.net (business, no-return, etc.). */
-export const zones = schema.table("zones", {
+export const zones = schema.table(
+  "zones",
+  {
   id: serial("id").primaryKey(),
   areaId: integer("area_id")
     .notNull()
@@ -117,9 +124,13 @@ export const zones = schema.table("zones", {
   geometry: multipolygonGeometry("geometry").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
+  },
+  (t) => [index("zones_geometry_gist").using("gist", t.geometry)]
+);
 
-export const places = schema.table("places", {
+export const places = schema.table(
+  "places",
+  {
   id: serial("id").primaryKey(),
   uid: integer("uid").notNull().unique(),
   areaId: integer("area_id")
@@ -156,9 +167,16 @@ export const places = schema.table("places", {
   }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
+  },
+  (t) => [
+    index("places_bike_idx").on(t.bike),
+    index("places_area_id_idx").on(t.areaId),
+  ]
+);
 
-export const bikes = schema.table("bikes", {
+export const bikes = schema.table(
+  "bikes",
+  {
   id: serial("id").primaryKey(),
   number: text("number").notNull().unique(),
   placeId: integer("place_id")
@@ -176,9 +194,13 @@ export const bikes = schema.table("bikes", {
   batteryPack: jsonb("battery_pack"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
+  },
+  (t) => [index("bikes_place_id_idx").on(t.placeId)]
+);
 
-export const bikePositions = schema.table("bike_positions", {
+export const bikePositions = schema.table(
+  "bike_positions",
+  {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   bikeId: integer("bike_id")
     .notNull()
@@ -196,7 +218,12 @@ export const bikePositions = schema.table("bike_positions", {
     srid: 4326,
   }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
+  },
+  (t) => [
+    index("bike_positions_bike_id_idx").on(t.bikeId),
+    index("bike_positions_created_at_idx").on(t.createdAt),
+  ]
+);
 
 export type Network = typeof networks.$inferSelect;
 export type Area = typeof areas.$inferSelect;
