@@ -579,13 +579,22 @@ export default function BikeMap() {
             className="pointer-events-none *:pointer-events-auto"
           >
             <div className="min-w-[160px] text-sm">
-              <p className="font-semibold text-gray-900">
+              <p className="font-semibold text-zinc-900">
                 {placePopup.place.name}
               </p>
-              <div className="mt-1 space-y-0.5 text-gray-600">
-                <p>Available: {placePopup.place.bikesAvailableToRent}</p>
-                <p>Total bikes: {placePopup.place.bikes}</p>
-                <p>Racks: {placePopup.place.bikeRacks}</p>
+              <div className="mt-2 space-y-1 text-zinc-500">
+                <p>
+                  <span className="font-medium text-zinc-800">{placePopup.place.bikesAvailableToRent}</span>{" "}
+                  available
+                </p>
+                <p>
+                  <span className="font-medium text-zinc-800">{placePopup.place.bikes}</span>{" "}
+                  total bikes
+                </p>
+                <p>
+                  <span className="font-medium text-zinc-800">{placePopup.place.bikeRacks}</span>{" "}
+                  racks
+                </p>
               </div>
             </div>
           </Popup>
@@ -603,21 +612,23 @@ export default function BikeMap() {
             className="pointer-events-none *:pointer-events-auto"
           >
             <div className="min-w-[180px] text-sm">
-              <p className="font-semibold text-gray-900">
+              <p className="font-semibold text-zinc-900">
                 Bike #{bikePopup.bikeNumber}
               </p>
               {trail.length === 0 ? (
-                <p className="mt-1 text-gray-400">Loading trail…</p>
+                <p className="mt-1 text-zinc-400">Loading trail…</p>
               ) : (
-                <div className="mt-1 space-y-1 text-gray-600">
+                <div className="mt-2 space-y-1 text-zinc-500">
                   <p>
-                    {trail.length} position{trail.length !== 1 ? "s" : ""}{" "}
-                    recorded
+                    <span className="font-medium text-zinc-800">{trail.length}</span>{" "}
+                    position{trail.length !== 1 ? "s" : ""} recorded
                   </p>
-                  <ul className="mt-1 space-y-0.5 text-xs text-gray-400">
+                  <ul className="mt-1 space-y-0.5 text-xs">
                     {trail.map((pos, i) => (
-                      <li key={pos.id}>
-                        {i === 0 ? "▶ " : `${i + 1}. `}
+                      <li key={pos.id} className="flex items-center gap-1.5">
+                        <span className={i === 0 ? "text-blue-500" : "text-zinc-300"}>
+                          {i === 0 ? "▶" : `${i + 1}.`}
+                        </span>
                         {new Date(pos.createdAt).toLocaleString()}
                       </li>
                     ))}
@@ -631,66 +642,67 @@ export default function BikeMap() {
 
       {/* Status bar */}
       <div className="absolute bottom-8 right-4 flex gap-2">
-        <div className="rounded-lg bg-white/90 px-3 py-2 text-xs text-gray-600 shadow backdrop-blur">
-          <span className="font-medium">{places.length}</span> stations
+        <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur">
+          <span className="font-semibold text-zinc-900">{places.length.toLocaleString()}</span> stations
           {lastUpdated && (
-            <span className="ml-2 text-gray-400">
+            <span className="ml-2 text-zinc-400">
               · {lastUpdated.toLocaleTimeString()}
             </span>
           )}
         </div>
         {bikes.length > 0 && (
-          <div className="rounded-lg bg-blue-50/90 px-3 py-2 text-xs text-blue-700 shadow backdrop-blur">
-            <span className="font-medium">{bikes.length.toLocaleString()}</span>{" "}
-            bikes
+          <div className="rounded-xl bg-white/90 px-3 py-2 text-xs text-zinc-600 shadow backdrop-blur">
+            <span className="font-semibold text-blue-500">{bikes.length.toLocaleString()}</span> bikes
           </div>
         )}
       </div>
 
       {/* Legend */}
-      <div className="absolute top-16 right-3 rounded-lg bg-white/90 px-3 py-2 text-xs text-gray-600 shadow backdrop-blur">
-        <div className="mb-1 font-semibold text-gray-700">Legend</div>
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-full bg-green-400" />
-          Station (bikes avail.)
+      <div className="absolute top-16 right-3 rounded-2xl bg-white/90 px-4 py-3 text-xs text-zinc-600 shadow backdrop-blur">
+        <div className="mb-2 font-semibold text-zinc-400 tracking-wide uppercase text-[10px]">Legend</div>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-green-400 ring-2 ring-zinc-200" />
+            Station (bikes avail.)
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-yellow-400 ring-2 ring-zinc-200" />
+            Station (few bikes)
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-red-400 ring-2 ring-zinc-200" />
+            Station (empty)
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-blue-400 ring-2 ring-zinc-200" />
+            Individual bike
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-full bg-yellow-400" />
-          Station (few bikes)
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-full bg-red-400" />
-          Station (empty)
-        </div>
-        <div className="mt-1 flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-full bg-blue-400" />
-          Individual bike
-        </div>
-        <div className="mt-2 border-t border-gray-200 pt-1.5">
-          <label className="flex cursor-pointer items-center gap-2 font-medium text-gray-500">
+        <div className="mt-3 border-t border-zinc-200 pt-2.5">
+          <label className="flex cursor-pointer items-center gap-2 font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
             <input
               type="checkbox"
               checked={showZones}
               onChange={(e) => setShowZones(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300"
+              className="h-3.5 w-3.5 rounded border-zinc-300 accent-indigo-500"
             />
-            Zones
+            Show zones
           </label>
           {showZones && (
-            <>
-              <div className="mt-1 flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded bg-green-500/30 border border-green-500/50" />
+            <div className="mt-2 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 shrink-0 rounded bg-green-500/30 border border-green-500/50" />
                 Business
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded bg-slate-400/30 border border-slate-400/50" />
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 shrink-0 rounded bg-slate-400/30 border border-slate-400/50" />
                 No business
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded bg-amber-500/30 border border-amber-500/50" />
-                Policy (e.g. no return)
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 shrink-0 rounded bg-amber-500/30 border border-amber-400/50" />
+                Policy zone
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
