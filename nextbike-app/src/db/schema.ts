@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgSchema,
+  real,
   serial,
   text,
   timestamp,
@@ -225,9 +226,34 @@ export const bikePositions = schema.table(
   ]
 );
 
+export const bikeMovements = schema.materializedView(
+  "bike_movements",
+  {
+    bikeId: integer("bike_id").notNull(),
+    startPositionId: integer("start_position_id").notNull(),
+    endPositionId: integer("end_position_id").notNull(),
+    startLocation: geometry("start_location", {
+      type: "point",
+      mode: "xy",
+      srid: 4326,
+    }).notNull(),
+    endLocation: geometry("end_location", {
+      type: "point",
+      mode: "xy",
+      srid: 4326,
+    }).notNull(),
+    distanceKm: real("distance_km").notNull(),
+    startTime: timestamp("start_time", { withTimezone: true }).notNull(),
+    endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+    areaId: integer("area_id").notNull(),
+    networkId: integer("network_id").notNull(),
+  }
+).existing();
+
 export type Network = typeof networks.$inferSelect;
 export type Area = typeof areas.$inferSelect;
 export type Zone = typeof zones.$inferSelect;
 export type Place = typeof places.$inferSelect;
 export type Bike = typeof bikes.$inferSelect;
 export type BikePosition = typeof bikePositions.$inferSelect;
+export type BikeMovement = typeof bikeMovements.$inferSelect;

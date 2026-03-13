@@ -1,7 +1,15 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { bikes, bikePositions, places, zones } from "@/db/schema";
+import {
+  areas,
+  bikeMovements,
+  bikePositions,
+  bikes,
+  networks,
+  places,
+  zones,
+} from "@/db/schema";
 import { baseProcedure, createTRPCRouter } from "../init";
 
 export type Bike = {
@@ -232,5 +240,131 @@ export const nextbikeRouter = createTRPCRouter({
         properties: row.properties as Record<string, unknown>,
         geometry: row.geometryJson, // We are returning the raw geometry string so we don't have to parse it to just serialize it again
       })) as RawZone[];
+    }),
+
+  getGeneralStats: baseProcedure.query(async () => {
+    const [row] = await db.execute<{
+      bikes: number;
+      places: number;
+      areas: number;
+      networks: number;
+      zones: number;
+      bike_positions: number;
+      total_distance_km: number;
+    }>(sql`
+      SELECT
+        (SELECT count(*)::int FROM "nextbike"."bikes") AS bikes,
+        (SELECT count(*)::int FROM "nextbike"."places") AS places,
+        (SELECT count(*)::int FROM "nextbike"."areas") AS areas,
+        (SELECT count(*)::int FROM "nextbike"."networks") AS networks,
+        (SELECT count(*)::int FROM "nextbike"."zones") AS zones,
+        (SELECT count(*)::int FROM "nextbike"."bike_positions") AS bike_positions,
+        coalesce(round((SELECT sum(distance_km) FROM "nextbike"."bike_movements"))::numeric, 2) AS total_distance_km
+      FROM (SELECT 1) _ 
+    `);
+    if (!row) {
+      return {
+        bikes: 0,
+        places: 0,
+        areas: 0,
+        networks: 0,
+        zones: 0,
+        bikePositions: 0,
+        totalDistanceKm: 0,
+      };
+    }
+    return {
+      bikes: row.bikes,
+      places: row.places,
+      areas: row.areas,
+      networks: row.networks,
+      zones: row.zones,
+      bikePositions: row.bike_positions,
+      totalDistanceKm: Number(row.total_distance_km),
+    };
+  }),
+
+  getLeaderboardBikes: baseProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+      })
+    )
+    .query(async (opts) => {
+      const rows = await db
+        .select({
+          bikeId: bikeMovements.bikeId,
+          bikeNumber: bikes.number,
+          totalDistanceKm: sum(bikeMovements.distanceKm),
+        })
+        .from(bikeMovements)
+        .innerJoin(bikes, eq(bikeMovements.bikeId, bikes.id))
+        .groupBy(bikeMovements.bikeId, bikes.number)
+        .orderBy(desc(sql`sum(${bikeMovements.distanceKm})`))
+        .limit(opts.input.limit);
+
+      return rows.map((row, i) => ({
+        bikeId: row.bikeId,
+        bikeNumber: row.bikeNumber,
+        totalDistanceKm: Number(row.totalDistanceKm ?? 0),
+        rank: i + 1,
+      }));
+    }),
+
+  getLeaderboardAreas: baseProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+      })
+    )
+    .query(async (opts) => {
+      const rows = await db
+        .select({
+          areaId: bikeMovements.areaId,
+          areaName: areas.name,
+          networkName: networks.name,
+          totalDistanceKm: sum(bikeMovements.distanceKm),
+        })
+        .from(bikeMovements)
+        .innerJoin(areas, eq(bikeMovements.areaId, areas.id))
+        .innerJoin(networks, eq(areas.networkId, networks.id))
+        .groupBy(bikeMovements.areaId, areas.name, networks.name)
+        .orderBy(desc(sql`sum(${bikeMovements.distanceKm})`))
+        .limit(opts.input.limit);
+
+      return rows.map((row, i) => ({
+        areaId: row.areaId,
+        areaName: row.areaName,
+        networkName: row.networkName,
+        totalDistanceKm: Number(row.totalDistanceKm ?? 0),
+        rank: i + 1,
+      }));
+    }),
+
+  getLeaderboardNetworks: baseProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+      })
+    )
+    .query(async (opts) => {
+      const rows = await db
+        .select({
+          networkId: bikeMovements.networkId,
+          networkName: networks.name,
+          totalDistanceKm: sum(bikeMovements.distanceKm),
+        })
+        .from(bikeMovements)
+        .innerJoin(networks, eq(bikeMovements.networkId, networks.id))
+        .groupBy(bikeMovements.networkId, networks.name)
+        .orderBy(desc(sql`sum(${bikeMovements.distanceKm})`))
+        .limit(opts.input.limit);
+
+      return rows.map((row, i) => ({
+        networkId: row.networkId,
+        networkName: row.networkName,
+        totalDistanceKm: Number(row.totalDistanceKm ?? 0),
+        rank: i + 1,
+      }));
     }),
 });
