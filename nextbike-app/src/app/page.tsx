@@ -175,7 +175,15 @@ export default function Home() {
         </section>
 
         <footer className="mt-12 text-center text-xs text-zinc-400 dark:text-zinc-600">
-          Not affiliated with Nextbike GmbH · data fetched from the public API
+          Not affiliated with Nextbike GmbH · data fetched from the public API ·{" "}
+          <a
+            href="https://github.com/merlinfuchs/nextbike.lol"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
+          >
+            GitHub
+          </a>
         </footer>
       </main>
     </div>

@@ -1,12 +1,19 @@
 import { desc, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { bikes, bikePositions, networks, areas, places, zones } from "@/db/schema";
+import {
+  bikes,
+  bikePositions,
+  networks,
+  areas,
+  places,
+  zones,
+} from "@/db/schema";
 import { haversineDistance } from "./geo";
 
 const LIVE_DATA_URL = "https://api.nextbike.net/maps/nextbike-live.json";
 const ZONES_BASE_URL = "https://zone-service.nextbikecloud.net/v1/zones/city";
 const CHUNK_SIZE = 200;
-const POSITION_THRESHOLD_METERS = 100;
+const POSITION_THRESHOLD_METERS = 250;
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -632,11 +639,14 @@ export async function scrape() {
   const bikeKeyToId = new Map<string, number>();
   for (const batch of chunk(networkIdsInBikeRows, CHUNK_SIZE)) {
     const rows = await db
-      .select({ id: bikes.id, number: bikes.number, networkId: bikes.networkId })
+      .select({
+        id: bikes.id,
+        number: bikes.number,
+        networkId: bikes.networkId,
+      })
       .from(bikes)
       .where(inArray(bikes.networkId, batch));
-    for (const r of rows)
-      bikeKeyToId.set(`${r.networkId}:${r.number}`, r.id);
+    for (const r of rows) bikeKeyToId.set(`${r.networkId}:${r.number}`, r.id);
   }
 
   const lastPositions = await db
@@ -669,7 +679,9 @@ export async function scrape() {
   for (const b of bikeRows) {
     const networkId = nameToNetworkId.get(b.networkName);
     const bikeId =
-      networkId != null ? bikeKeyToId.get(`${networkId}:${b.number}`) : undefined;
+      networkId != null
+        ? bikeKeyToId.get(`${networkId}:${b.number}`)
+        : undefined;
     const placeId = placeUidToId.get(b.placeUid);
     if (bikeId == null || placeId == null) continue;
     const prev = lastByBikeId.get(bikeId);
