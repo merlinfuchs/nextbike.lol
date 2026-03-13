@@ -209,6 +209,7 @@ export default function BikeMap() {
   const [placePopup, setPlacePopup] = useState<PlacePopupInfo | null>(null);
   const [bikePopup, setBikePopup] = useState<BikePopupInfo | null>(null);
   const [cursor, setCursor] = useState("auto");
+  const [showZones, setShowZones] = useState(false);
   const [viewport, setViewport] = useState<{
     zoom: number;
     bounds: { minLng: number; minLat: number; maxLng: number; maxLat: number };
@@ -265,7 +266,10 @@ export default function BikeMap() {
         ? { bounds: roundBounds(viewport.bounds) }
         : {}
     ),
-    enabled: viewport != null && viewport.zoom >= ZONE_ZOOM_THRESHOLD,
+    enabled:
+      showZones &&
+      viewport != null &&
+      viewport.zoom >= ZONE_ZOOM_THRESHOLD,
     placeholderData: keepPreviousData,
   });
 
@@ -520,9 +524,11 @@ export default function BikeMap() {
         <ScaleControl />
 
         {/* Zones (semi-transparent fill by type) — below points so stations/bikes render on top */}
-        <Source id="zones" type="geojson" data={zonesGeoJSON}>
-          <Layer {...zonesFillLayer} />
-        </Source>
+        {showZones && (
+          <Source id="zones" type="geojson" data={zonesGeoJSON}>
+            <Layer {...zonesFillLayer} />
+          </Source>
+        )}
 
         {/* Trail line — lineMetrics only on the LineString source */}
         {trail.length >= 2 && (
@@ -660,25 +666,33 @@ export default function BikeMap() {
           <span className="inline-block h-3 w-3 rounded-full bg-blue-400" />
           Individual bike
         </div>
-        {zones.length > 0 && (
-          <>
-            <div className="mt-2 border-t border-gray-200 pt-1.5 font-medium text-gray-500">
-              Zones
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded bg-green-500/30 border border-green-500/50" />
-              Business
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded bg-slate-400/30 border border-slate-400/50" />
-              No business
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded bg-amber-500/30 border border-amber-500/50" />
-              Policy (e.g. no return)
-            </div>
-          </>
-        )}
+        <div className="mt-2 border-t border-gray-200 pt-1.5">
+          <label className="flex cursor-pointer items-center gap-2 font-medium text-gray-500">
+            <input
+              type="checkbox"
+              checked={showZones}
+              onChange={(e) => setShowZones(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300"
+            />
+            Zones
+          </label>
+          {showZones && (
+            <>
+              <div className="mt-1 flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded bg-green-500/30 border border-green-500/50" />
+                Business
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded bg-slate-400/30 border border-slate-400/50" />
+                No business
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded bg-amber-500/30 border border-amber-500/50" />
+                Policy (e.g. no return)
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
