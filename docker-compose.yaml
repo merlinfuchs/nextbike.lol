@@ -9,6 +9,11 @@ services:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nextbike} -d ${POSTGRES_DB:-nextbike}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   app:
     image: ghcr.io/merlinfuchs/nextbike-lol:latest
@@ -17,7 +22,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nextbike}:${POSTGRES_PASSWORD:-nextbike}@db:5432/${POSTGRES_DB:-nextbike}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
