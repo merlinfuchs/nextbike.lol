@@ -245,7 +245,7 @@ export const nextbikeRouter = createTRPCRouter({
   getGeneralStats: baseProcedure.query(async () => {
     const [row] = await db.execute<{
       bikes: number;
-      places: number;
+      stations: number;
       areas: number;
       networks: number;
       zones: number;
@@ -254,7 +254,7 @@ export const nextbikeRouter = createTRPCRouter({
     }>(sql`
       SELECT
         (SELECT count(*)::int FROM "nextbike"."bikes") AS bikes,
-        (SELECT count(*)::int FROM "nextbike"."places") AS places,
+        (SELECT count(*)::int FROM "nextbike"."places" WHERE bike = false) AS stations,
         (SELECT count(*)::int FROM "nextbike"."areas") AS areas,
         (SELECT count(*)::int FROM "nextbike"."networks") AS networks,
         (SELECT count(*)::int FROM "nextbike"."zones") AS zones,
@@ -265,7 +265,7 @@ export const nextbikeRouter = createTRPCRouter({
     if (!row) {
       return {
         bikes: 0,
-        places: 0,
+        stations: 0,
         areas: 0,
         networks: 0,
         zones: 0,
@@ -275,7 +275,7 @@ export const nextbikeRouter = createTRPCRouter({
     }
     return {
       bikes: row.bikes,
-      places: row.places,
+      stations: row.stations,
       areas: row.areas,
       networks: row.networks,
       zones: row.zones,

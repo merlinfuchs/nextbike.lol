@@ -50,7 +50,7 @@ export default function Home() {
           ) : stats.data ? (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <StatCard label="Bikes" value={stats.data.bikes} />
-              <StatCard label="Places" value={stats.data.places} />
+              <StatCard label="Stations" value={stats.data.stations} />
               <StatCard label="Areas" value={stats.data.areas} />
               <StatCard label="Networks" value={stats.data.networks} />
               <StatCard label="Zones" value={stats.data.zones} />
