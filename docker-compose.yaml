@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:18-3.6
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nextbike}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nextbike}
@@ -8,7 +8,7 @@ services:
     expose:
       - "5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nextbike} -d ${POSTGRES_DB:-nextbike}"]
       interval: 5s
@@ -18,7 +18,7 @@ services:
   app:
     image: ghcr.io/merlinfuchs/nextbike-lol:latest
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_PORT:-3001}:3000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nextbike}:${POSTGRES_PASSWORD:-nextbike}@db:5432/${POSTGRES_DB:-nextbike}
     depends_on:
