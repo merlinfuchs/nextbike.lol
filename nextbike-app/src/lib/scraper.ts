@@ -201,6 +201,7 @@ export async function scrape() {
   }[] = [];
   const bikeRows: {
     number: string;
+    networkName: string;
     placeUid: number;
     bikeType: number;
     lockTypes: string[];
@@ -311,6 +312,7 @@ export async function scrape() {
         for (const bike of list) {
           bikeRows.push({
             number: bike.number,
+            networkName: country.name,
             placeUid: place.uid,
             bikeType: bike.bike_type,
             lockTypes: Array.isArray(bike.lock_types) ? bike.lock_types : [],
@@ -580,9 +582,11 @@ export async function scrape() {
   const bikeUpserts: (typeof bikes.$inferInsert)[] = [];
   for (const b of bikeRows) {
     const placeId = placeUidToId.get(b.placeUid);
-    if (placeId == null) continue;
+    const networkId = nameToNetworkId.get(b.networkName);
+    if (placeId == null || networkId == null) continue;
     bikeUpserts.push({
       number: b.number,
+      networkId,
       placeId,
       bikeType: b.bikeType,
       lockTypes: b.lockTypes,
@@ -602,7 +606,7 @@ export async function scrape() {
       .insert(bikes)
       .values(batch)
       .onConflictDoUpdate({
-        target: bikes.number,
+        target: [bikes.number, bikes.networkId],
         set: {
           placeId: sql`excluded.place_id`,
           bikeType: sql`excluded.bike_type`,
@@ -618,14 +622,21 @@ export async function scrape() {
       });
   }
 
-  const bikeNumbers = [...new Set(bikeRows.map((b) => b.number))];
-  const bikeNumberToId = new Map<string, number>();
-  for (const batch of chunk(bikeNumbers, CHUNK_SIZE)) {
+  const networkIdsInBikeRows = [
+    ...new Set(
+      bikeRows
+        .map((b) => nameToNetworkId.get(b.networkName))
+        .filter((id): id is number => id != null)
+    ),
+  ];
+  const bikeKeyToId = new Map<string, number>();
+  for (const batch of chunk(networkIdsInBikeRows, CHUNK_SIZE)) {
     const rows = await db
-      .select({ id: bikes.id, number: bikes.number })
+      .select({ id: bikes.id, number: bikes.number, networkId: bikes.networkId })
       .from(bikes)
-      .where(inArray(bikes.number, batch));
-    for (const r of rows) bikeNumberToId.set(r.number, r.id);
+      .where(inArray(bikes.networkId, batch));
+    for (const r of rows)
+      bikeKeyToId.set(`${r.networkId}:${r.number}`, r.id);
   }
 
   const lastPositions = await db
@@ -653,7 +664,9 @@ export async function scrape() {
 
   const positionInserts: (typeof bikePositions.$inferInsert)[] = [];
   for (const b of bikeRows) {
-    const bikeId = bikeNumberToId.get(b.number);
+    const networkId = nameToNetworkId.get(b.networkName);
+    const bikeId =
+      networkId != null ? bikeKeyToId.get(`${networkId}:${b.number}`) : undefined;
     const placeId = placeUidToId.get(b.placeUid);
     if (bikeId == null || placeId == null) continue;
     const prev = lastByBikeId.get(bikeId);

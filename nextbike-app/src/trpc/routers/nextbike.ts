@@ -259,7 +259,7 @@ export const nextbikeRouter = createTRPCRouter({
         (SELECT count(*)::int FROM "nextbike"."networks") AS networks,
         (SELECT count(*)::int FROM "nextbike"."zones") AS zones,
         (SELECT count(*)::int FROM "nextbike"."bike_positions") AS bike_positions,
-        coalesce(round((SELECT sum(distance_km) FROM "nextbike"."bike_movements"))::numeric, 2) AS total_distance_km
+        coalesce(round((SELECT sum(distance_km) FROM "nextbike"."bike_movements" WHERE plausible = true))::numeric, 0) AS total_distance_km
       FROM (SELECT 1) _ 
     `);
     if (!row) {
@@ -299,8 +299,9 @@ export const nextbikeRouter = createTRPCRouter({
         })
         .from(bikeMovements)
         .innerJoin(bikes, eq(bikeMovements.bikeId, bikes.id))
+        .where(eq(bikeMovements.plausible, true))
         .groupBy(bikeMovements.bikeId, bikes.number)
-        .orderBy(desc(sql`sum(${bikeMovements.distanceKm})`))
+        .orderBy(desc(sql.raw("3")))
         .limit(opts.input.limit);
 
       return rows.map((row, i) => ({
@@ -328,8 +329,9 @@ export const nextbikeRouter = createTRPCRouter({
         .from(bikeMovements)
         .innerJoin(areas, eq(bikeMovements.areaId, areas.id))
         .innerJoin(networks, eq(areas.networkId, networks.id))
+        .where(eq(bikeMovements.plausible, true))
         .groupBy(bikeMovements.areaId, areas.name, networks.name)
-        .orderBy(desc(sql`sum(${bikeMovements.distanceKm})`))
+        .orderBy(desc(sql.raw('sum("nextbike"."bike_movements"."distance_km")')))
         .limit(opts.input.limit);
 
       return rows.map((row, i) => ({
@@ -356,8 +358,9 @@ export const nextbikeRouter = createTRPCRouter({
         })
         .from(bikeMovements)
         .innerJoin(networks, eq(bikeMovements.networkId, networks.id))
+        .where(eq(bikeMovements.plausible, true))
         .groupBy(bikeMovements.networkId, networks.name)
-        .orderBy(desc(sql`sum(${bikeMovements.distanceKm})`))
+        .orderBy(desc(sql.raw('sum("nextbike"."bike_movements"."distance_km")')))
         .limit(opts.input.limit);
 
       return rows.map((row, i) => ({

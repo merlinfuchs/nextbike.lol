@@ -3,6 +3,7 @@ import {
   bigserial,
   boolean,
   customType,
+  doublePrecision,
   geometry,
   index,
   integer,
@@ -12,6 +13,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const schema = pgSchema("nextbike");
@@ -179,7 +181,12 @@ export const bikes = schema.table(
   "bikes",
   {
   id: serial("id").primaryKey(),
-  number: text("number").notNull().unique(),
+  number: text("number").notNull(),
+  networkId: integer("network_id")
+    .notNull()
+    .references(() => networks.id, {
+      onDelete: "cascade",
+    }),
   placeId: integer("place_id")
     .notNull()
     .references(() => places.id, {
@@ -196,7 +203,11 @@ export const bikes = schema.table(
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (t) => [index("bikes_place_id_idx").on(t.placeId)]
+  (t) => [
+    uniqueIndex("bikes_number_network_id_idx").on(t.number, t.networkId),
+    index("bikes_place_id_idx").on(t.placeId),
+    index("bikes_network_id_idx").on(t.networkId),
+  ]
 );
 
 export const bikePositions = schema.table(
@@ -245,6 +256,8 @@ export const bikeMovements = schema.materializedView(
     distanceKm: real("distance_km").notNull(),
     startTime: timestamp("start_time", { withTimezone: true }).notNull(),
     endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+    durationSeconds: doublePrecision("duration_seconds").notNull(),
+    plausible: boolean("plausible").notNull(),
     areaId: integer("area_id").notNull(),
     networkId: integer("network_id").notNull(),
   }
