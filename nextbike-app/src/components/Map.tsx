@@ -701,20 +701,22 @@ export default function BikeMap({
           </Source>
         )}
 
-        {/* Places and bikes in one clustered source */}
-        <Source
-          id="places-and-bikes"
-          type="geojson"
-          data={placesAndBikesGeoJSON}
-          cluster
-          clusterMaxZoom={14}
-          clusterRadius={50}
-        >
-          <Layer {...combinedClusterLayer} layout={{ visibility: bikePopup ? "none" : "visible" }} />
-          <Layer {...combinedClusterCountLayer} layout={{ ...combinedClusterCountLayer.layout, visibility: bikePopup ? "none" : "visible" }} />
-          <Layer {...placeUnclusteredLayer} layout={{ visibility: bikePopup ? "none" : "visible" }} />
-          <Layer {...bikeUnclusteredLayer} layout={{ visibility: bikePopup ? "none" : "visible" }} />
-        </Source>
+        {/* Places and bikes in one clustered source — hidden while a bike trail is shown */}
+        {!bikePopup && (
+          <Source
+            id="places-and-bikes"
+            type="geojson"
+            data={placesAndBikesGeoJSON}
+            cluster
+            clusterMaxZoom={14}
+            clusterRadius={50}
+          >
+            <Layer {...combinedClusterLayer} />
+            <Layer {...combinedClusterCountLayer} />
+            <Layer {...placeUnclusteredLayer} />
+            <Layer {...bikeUnclusteredLayer} />
+          </Source>
+        )}
 
         {/* Place popup — closeOnClick: false so one click on another feature (same or different type) switches popup */}
         {placePopup && (
