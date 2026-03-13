@@ -557,8 +557,37 @@ export default function BikeMap({
   const onMouseEnter = useCallback(() => setCursor("pointer"), []);
   const onMouseLeave = useCallback(() => setCursor("auto"), []);
 
+  const isLoading = placesQuery.isLoading || bikesQuery.isLoading;
+
   return (
     <div className="relative flex-auto">
+      {isLoading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <svg
+              className="h-8 w-8 animate-spin text-indigo-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span className="text-sm font-medium text-zinc-500">Loading map data…</span>
+          </div>
+        </div>
+      )}
       <ReactMap
         ref={mapRef}
         initialViewState={
