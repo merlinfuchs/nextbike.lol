@@ -1,7 +1,7 @@
 "use client";
 
 import { useTRPC } from "@/trpc/client";
-import type { Bike, Place, Zone } from "@/trpc/routers/nextbike";
+import type { Bike, Place, RawZone, Zone } from "@/trpc/routers/nextbike";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -132,7 +132,7 @@ const zonesFillLayer: LayerProps = {
       "#f59e0b",
       "#a78bfa",
     ],
-    "fill-opacity": 0.25,
+    "fill-opacity": 0.1,
     "fill-outline-color": "rgba(0,0,0,0.15)",
   },
 };
@@ -269,10 +269,14 @@ export default function BikeMap() {
     placeholderData: keepPreviousData,
   });
 
-  const zones: Zone[] =
-    viewport != null && viewport.zoom >= ZONE_ZOOM_THRESHOLD
-      ? zonesQuery.data ?? []
+  const zones: Zone[] = useMemo(() => {
+    return viewport != null && viewport.zoom >= ZONE_ZOOM_THRESHOLD
+      ? zonesQuery.data?.map((z) => ({
+          ...z,
+          geometry: JSON.parse(z.geometry) as GeoJSON.MultiPolygon,
+        })) ?? ([] as Zone[])
       : [];
+  }, [zonesQuery.data, viewport]);
   const trailQuery = useQuery({
     ...trpc.nextbike.getBikePositions.queryOptions({
       bikeId: bikePopup?.bikeId ?? 0,

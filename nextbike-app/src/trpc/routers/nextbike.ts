@@ -48,6 +48,15 @@ export type Location = {
   lng: number;
 };
 
+export type RawZone = {
+  id: number;
+  areaId: number;
+  externalId: string;
+  zoneType: string;
+  properties: Record<string, unknown>;
+  geometry: string;
+};
+
 export type Zone = {
   id: number;
   areaId: number;
@@ -196,7 +205,7 @@ export const nextbikeRouter = createTRPCRouter({
     )
     .query(async (opts) => {
       const bounds = opts.input.bounds;
-      if (!bounds) return [] as Zone[];
+      if (!bounds) return [] as RawZone[];
 
       const rows = await db
         .select({
@@ -205,9 +214,10 @@ export const nextbikeRouter = createTRPCRouter({
           externalId: zones.externalId,
           zoneType: zones.zoneType,
           properties: zones.properties,
-          geometryJson: sql<string>`ST_AsGeoJSON("nextbike"."zones"."geometry")`.as(
-            "geometry_json"
-          ),
+          geometryJson:
+            sql<string>`ST_AsGeoJSON("nextbike"."zones"."geometry")`.as(
+              "geometry_json"
+            ),
         })
         .from(zones)
         .where(
@@ -220,7 +230,7 @@ export const nextbikeRouter = createTRPCRouter({
         externalId: row.externalId,
         zoneType: row.zoneType,
         properties: row.properties as Record<string, unknown>,
-        geometry: JSON.parse(row.geometryJson) as GeoJSON.MultiPolygon,
-      })) as Zone[];
+        geometry: row.geometryJson, // We are returning the raw geometry string so we don't have to parse it to just serialize it again
+      })) as RawZone[];
     }),
 });
