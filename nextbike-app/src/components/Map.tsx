@@ -287,6 +287,36 @@ export default function BikeMap() {
   const places = placesQuery.data ?? [];
   const bikes = bikesQuery.data ?? [];
   const trail = bikePopup ? trailQuery.data ?? [] : [];
+  const trailFetched = !!bikePopup && trailQuery.isFetched;
+
+  // When a bike is selected and trail has loaded, fit viewport to trail + bike position
+  useEffect(() => {
+    if (!trailFetched || !bikePopup) return;
+    const map = mapRef.current?.getMap?.();
+    if (!map) return;
+
+    const lngs: number[] = [bikePopup.lng];
+    const lats: number[] = [bikePopup.lat];
+    for (const p of trail) {
+      lngs.push(p.location.lng);
+      lats.push(p.location.lat);
+    }
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+
+    // If single point, expand slightly so we don't zoom to max
+    const pad = 0.0005;
+    const w = Math.max(maxLng - minLng, pad);
+    const h = Math.max(maxLat - minLat, pad);
+    const bounds: [[number, number], [number, number]] = [
+      [minLng - w * 0.5, minLat - h * 0.5],
+      [maxLng + w * 0.5, maxLat + h * 0.5],
+    ];
+    map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 600 });
+  }, [trailFetched, bikePopup?.bikeId, bikePopup?.lng, bikePopup?.lat, trail]);
+
   const lastUpdated =
     placesQuery.dataUpdatedAt || bikesQuery.dataUpdatedAt
       ? new Date(
