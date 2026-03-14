@@ -187,7 +187,8 @@ export const nextbikeRouter = createTRPCRouter({
           ),
         })
         .from(bikePositions)
-        .where(eq(bikePositions.bikeId, opts.input.bikeId));
+        .where(eq(bikePositions.bikeId, opts.input.bikeId))
+        .orderBy(desc(bikePositions.createdAt));
 
       return rows.map((row) => ({
         id: row.id,

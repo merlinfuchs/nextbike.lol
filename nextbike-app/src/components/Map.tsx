@@ -201,6 +201,31 @@ const trailPointsLayer: LayerProps = {
   },
 };
 
+const trailPointsLabelLayer: LayerProps = {
+  id: "trail-points-label",
+  type: "symbol",
+  source: "bike-trail-points",
+  filter: ["==", ["geometry-type"], "Point"],
+  layout: {
+    "text-field": ["to-string", ["+", ["get", "age"], 1]],
+    "text-size": 10,
+    "text-allow-overlap": true,
+    "text-ignore-placement": true,
+  },
+  paint: {
+    "text-color": "#fff",
+    "text-opacity": [
+      "interpolate",
+      ["linear"],
+      ["get", "age"],
+      0,
+      1,
+      9,
+      0.25,
+    ],
+  },
+};
+
 // ---- types ----
 
 interface PlacePopupInfo {
@@ -698,6 +723,7 @@ export default function BikeMap({
             data={trailPointsGeoJSON}
           >
             <Layer {...trailPointsLayer} />
+            <Layer {...trailPointsLabelLayer} />
           </Source>
         )}
 
