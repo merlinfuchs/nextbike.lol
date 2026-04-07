@@ -1,4 +1,4 @@
-CREATE SCHEMA "nextbike";
+CREATE SCHEMA IF NOT EXISTS "nextbike";
 --> statement-breakpoint
 CREATE TABLE "nextbike"."areas" (
 	"id" serial PRIMARY KEY NOT NULL,
