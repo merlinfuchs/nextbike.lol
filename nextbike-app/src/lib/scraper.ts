@@ -1,4 +1,4 @@
-import { desc, inArray, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bikes,
@@ -649,29 +649,34 @@ export async function scrape() {
     for (const r of rows) bikeKeyToId.set(`${r.networkId}:${r.number}`, r.id);
   }
 
-  const lastPositions = await db
-    .select({
-      id: bikePositions.id,
-      bikeId: bikePositions.bikeId,
-      placeId: bikePositions.placeId,
-      location: bikePositions.location,
-    })
-    .from(bikePositions)
-    .orderBy(desc(bikePositions.createdAt));
+  // Latest row per bike via DISTINCT ON — uses bike_positions_bike_id_created_at_idx.
+  const lastPositions = await db.execute<{
+    id: number;
+    bike_id: number;
+    place_id: number;
+    lng: number;
+    lat: number;
+  }>(sql`
+    SELECT DISTINCT ON (bike_id)
+      id,
+      bike_id,
+      place_id,
+      ST_X(location) AS lng,
+      ST_Y(location) AS lat
+    FROM "nextbike"."bike_positions"
+    ORDER BY bike_id, created_at DESC
+  `);
   const lastByBikeId = new Map<
     number,
     { id: number; placeId: number; lat: number; lng: number }
   >();
   for (const row of lastPositions) {
-    if (!lastByBikeId.has(row.bikeId)) {
-      const loc = row.location as { x: number; y: number };
-      lastByBikeId.set(row.bikeId, {
-        id: row.id,
-        placeId: row.placeId,
-        lat: loc.y,
-        lng: loc.x,
-      });
-    }
+    lastByBikeId.set(row.bike_id, {
+      id: row.id,
+      placeId: row.place_id,
+      lat: row.lat,
+      lng: row.lng,
+    });
   }
 
   const positionInserts: (typeof bikePositions.$inferInsert)[] = [];

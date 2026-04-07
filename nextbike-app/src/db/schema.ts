@@ -15,6 +15,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const schema = pgSchema("nextbike");
 
@@ -174,6 +175,7 @@ export const places = schema.table(
   (t) => [
     index("places_bike_idx").on(t.bike),
     index("places_area_id_idx").on(t.areaId),
+    index("places_station_area_idx").on(t.areaId).where(sql`spot = true AND bike = false`),
   ]
 );
 
@@ -235,8 +237,15 @@ export const bikePositions = schema.table(
   (t) => [
     index("bike_positions_bike_id_idx").on(t.bikeId),
     index("bike_positions_created_at_idx").on(t.createdAt),
+    index("bike_positions_bike_id_created_at_idx").on(t.bikeId, t.createdAt.desc()),
   ]
 );
+
+export const kvCache = schema.table("kv_cache", {
+  key: text("key").primaryKey(),
+  payload: jsonb("payload").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const bikeMovements = schema.materializedView(
   "bike_movements",
@@ -271,3 +280,4 @@ export type Place = typeof places.$inferSelect;
 export type Bike = typeof bikes.$inferSelect;
 export type BikePosition = typeof bikePositions.$inferSelect;
 export type BikeMovement = typeof bikeMovements.$inferSelect;
+export type KvCache = typeof kvCache.$inferSelect;

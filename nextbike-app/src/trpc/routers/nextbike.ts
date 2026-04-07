@@ -1,15 +1,20 @@
-import { and, asc, desc, eq, sql, sum } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
-  areas,
-  bikeMovements,
   bikePositions,
   bikes,
-  networks,
   places,
+  kvCache,
   zones,
 } from "@/db/schema";
+import {
+  CACHE_KEYS,
+  type GeneralStatsPayload,
+  type LeaderboardAreaRow,
+  type LeaderboardBikeRow,
+  type LeaderboardNetworkRow,
+} from "@/lib/statsCache";
 import { baseProcedure, createTRPCRouter } from "../init";
 
 export type Bike = {
@@ -73,6 +78,32 @@ export type Zone = {
   properties: Record<string, unknown>;
   geometry: GeoJSON.MultiPolygon;
 };
+
+type RawBikeWithDistance = {
+  id: number;
+  number: string;
+  bike_type: number;
+  state: string;
+  active: boolean;
+  electric_lock: boolean;
+  pedelec_battery: number | null;
+  updated_at: Date;
+  total_distance_km: number;
+};
+
+function mapBikeRow(r: RawBikeWithDistance) {
+  return {
+    id: r.id,
+    number: r.number,
+    bikeType: r.bike_type,
+    state: r.state,
+    active: r.active,
+    electricLock: r.electric_lock,
+    pedelecBattery: r.pedelec_battery,
+    updatedAt: r.updated_at,
+    totalDistanceKm: Number(r.total_distance_km),
+  };
+}
 
 export const nextbikeRouter = createTRPCRouter({
   getBikes: baseProcedure
@@ -170,6 +201,7 @@ export const nextbikeRouter = createTRPCRouter({
     .input(
       z.object({
         bikeId: z.number(),
+        limit: z.number().min(1).max(1000).default(500),
       })
     )
     .query(async (opts) => {
@@ -188,7 +220,8 @@ export const nextbikeRouter = createTRPCRouter({
         })
         .from(bikePositions)
         .where(eq(bikePositions.bikeId, opts.input.bikeId))
-        .orderBy(desc(bikePositions.createdAt));
+        .orderBy(desc(bikePositions.createdAt))
+        .limit(opts.input.limit);
 
       return rows.map((row) => ({
         id: row.id,
@@ -244,27 +277,12 @@ export const nextbikeRouter = createTRPCRouter({
     }),
 
   getGeneralStats: baseProcedure.query(async () => {
-    const [row] = await db.execute<{
-      bikes: number;
-      stations: number;
-      areas: number;
-      networks: number;
-      zones: number;
-      bike_positions: number;
-      total_distance_km: number;
-    }>(sql`
-      SELECT
-        (SELECT count(*)::int FROM "nextbike"."bikes") AS bikes,
-        (SELECT count(*)::int FROM "nextbike"."places" WHERE bike = false) AS stations,
-        (SELECT count(*)::int FROM "nextbike"."areas") AS areas,
-        (SELECT count(*)::int FROM "nextbike"."networks") AS networks,
-        (SELECT count(*)::int FROM "nextbike"."zones") AS zones,
-        (SELECT count(*)::int FROM "nextbike"."bike_positions") AS bike_positions,
-        coalesce(round((SELECT sum(distance_km) FROM "nextbike"."bike_movements" WHERE plausible = true))::numeric, 0) AS total_distance_km
-      FROM (SELECT 1) _ 
-    `);
-    if (!row) {
-      return {
+    const [row] = await db
+      .select({ payload: kvCache.payload })
+      .from(kvCache)
+      .where(eq(kvCache.key, CACHE_KEYS.GENERAL_STATS));
+    return (
+      (row?.payload as GeneralStatsPayload | undefined) ?? {
         bikes: 0,
         stations: 0,
         areas: 0,
@@ -272,78 +290,30 @@ export const nextbikeRouter = createTRPCRouter({
         zones: 0,
         bikePositions: 0,
         totalDistanceKm: 0,
-      };
-    }
-    return {
-      bikes: row.bikes,
-      stations: row.stations,
-      areas: row.areas,
-      networks: row.networks,
-      zones: row.zones,
-      bikePositions: row.bike_positions,
-      totalDistanceKm: Number(row.total_distance_km),
-    };
+      }
+    );
   }),
 
   getLeaderboardBikes: baseProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(10),
-      })
-    )
+    .input(z.object({ limit: z.number().min(1).max(100).default(10) }))
     .query(async (opts) => {
-      const rows = await db
-        .select({
-          bikeId: bikeMovements.bikeId,
-          bikeNumber: bikes.number,
-          totalDistanceKm: sum(bikeMovements.distanceKm),
-        })
-        .from(bikeMovements)
-        .innerJoin(bikes, eq(bikeMovements.bikeId, bikes.id))
-        .where(eq(bikeMovements.plausible, true))
-        .groupBy(bikeMovements.bikeId, bikes.number)
-        .orderBy(desc(sql.raw("3")))
-        .limit(opts.input.limit);
-
-      return rows.map((row, i) => ({
-        bikeId: row.bikeId,
-        bikeNumber: row.bikeNumber,
-        totalDistanceKm: Number(row.totalDistanceKm ?? 0),
-        rank: i + 1,
-      }));
+      const [row] = await db
+        .select({ payload: kvCache.payload })
+        .from(kvCache)
+        .where(eq(kvCache.key, CACHE_KEYS.LEADERBOARD_BIKES));
+      const data = (row?.payload as LeaderboardBikeRow[] | undefined) ?? [];
+      return data.slice(0, opts.input.limit);
     }),
 
   getLeaderboardAreas: baseProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(10),
-      })
-    )
+    .input(z.object({ limit: z.number().min(1).max(100).default(10) }))
     .query(async (opts) => {
-      const rows = await db
-        .select({
-          areaId: bikeMovements.areaId,
-          areaName: areas.name,
-          networkId: networks.id,
-          networkName: networks.name,
-          totalDistanceKm: sum(bikeMovements.distanceKm),
-        })
-        .from(bikeMovements)
-        .innerJoin(areas, eq(bikeMovements.areaId, areas.id))
-        .innerJoin(networks, eq(areas.networkId, networks.id))
-        .where(eq(bikeMovements.plausible, true))
-        .groupBy(bikeMovements.areaId, areas.name, networks.id, networks.name)
-        .orderBy(desc(sql.raw('sum("nextbike"."bike_movements"."distance_km")')))
-        .limit(opts.input.limit);
-
-      return rows.map((row, i) => ({
-        areaId: row.areaId,
-        areaName: row.areaName,
-        networkId: row.networkId,
-        networkName: row.networkName,
-        totalDistanceKm: Number(row.totalDistanceKm ?? 0),
-        rank: i + 1,
-      }));
+      const [row] = await db
+        .select({ payload: kvCache.payload })
+        .from(kvCache)
+        .where(eq(kvCache.key, CACHE_KEYS.LEADERBOARD_AREAS));
+      const data = (row?.payload as LeaderboardAreaRow[] | undefined) ?? [];
+      return data.slice(0, opts.input.limit);
     }),
 
   getNetworks: baseProcedure.query(async () => {
@@ -462,6 +432,12 @@ export const nextbikeRouter = createTRPCRouter({
         booked_bikes: number;
         total_distance_km: number;
       }>(sql`
+        WITH area_dist AS (
+          SELECT area_id, SUM(distance_km) AS total
+          FROM "nextbike"."bike_movements"
+          WHERE network_id = ${opts.input.networkId} AND plausible = true
+          GROUP BY area_id
+        )
         SELECT
           a.id,
           a.name,
@@ -469,9 +445,9 @@ export const nextbikeRouter = createTRPCRouter({
           a.set_point_bikes,
           a.num_places,
           a.booked_bikes,
-          COALESCE((SELECT SUM(distance_km) FROM "nextbike"."bike_movements"
-                    WHERE area_id = a.id AND plausible = true), 0) AS total_distance_km
+          COALESCE(ad.total, 0) AS total_distance_km
         FROM "nextbike"."areas" a
+        LEFT JOIN area_dist ad ON ad.area_id = a.id
         WHERE a.network_id = ${opts.input.networkId}
         ORDER BY total_distance_km DESC
       `);
@@ -561,26 +537,23 @@ export const nextbikeRouter = createTRPCRouter({
   getAreaBikes: baseProcedure
     .input(z.object({ areaId: z.number() }))
     .query(async (opts) => {
-      const rows = await db
-        .select({
-          id: bikes.id,
-          number: bikes.number,
-          bikeType: bikes.bikeType,
-          state: bikes.state,
-          active: bikes.active,
-          electricLock: bikes.electricLock,
-          pedelecBattery: bikes.pedelecBattery,
-          updatedAt: bikes.updatedAt,
-          totalDistanceKm: sql<number>`coalesce(sum(${bikeMovements.distanceKm}) filter (where ${bikeMovements.plausible} = true), 0)`.as("total_distance_km"),
-        })
-        .from(bikes)
-        .innerJoin(places, eq(bikes.placeId, places.id))
-        .leftJoin(bikeMovements, eq(bikes.id, bikeMovements.bikeId))
-        .where(and(eq(places.areaId, opts.input.areaId), eq(places.bike, true)))
-        .groupBy(bikes.id)
-        .orderBy(desc(sql.raw("total_distance_km")))
-        .limit(300);
-      return rows.map((r) => ({ ...r, totalDistanceKm: Number(r.totalDistanceKm) }));
+      const rows = await db.execute<RawBikeWithDistance>(sql`
+        SELECT
+          b.id, b.number, b.bike_type, b.state, b.active, b.electric_lock,
+          b.pedelec_battery, b.updated_at,
+          COALESCE(m.total_distance_km, 0) AS total_distance_km
+        FROM "nextbike"."bikes" b
+        JOIN "nextbike"."places" p ON p.id = b.place_id
+        LEFT JOIN LATERAL (
+          SELECT SUM(distance_km) AS total_distance_km
+          FROM "nextbike"."bike_movements"
+          WHERE bike_id = b.id AND plausible = true
+        ) m ON TRUE
+        WHERE p.area_id = ${opts.input.areaId} AND p.bike = true
+        ORDER BY total_distance_km DESC NULLS LAST
+        LIMIT 300
+      `);
+      return rows.map(mapBikeRow);
     }),
 
   getStation: baseProcedure
@@ -632,23 +605,21 @@ export const nextbikeRouter = createTRPCRouter({
       const r = rows[0];
       if (!r) throw new Error("Station not found");
 
-      const parkedBikes = await db
-        .select({
-          id: bikes.id,
-          number: bikes.number,
-          bikeType: bikes.bikeType,
-          state: bikes.state,
-          active: bikes.active,
-          electricLock: bikes.electricLock,
-          pedelecBattery: bikes.pedelecBattery,
-          updatedAt: bikes.updatedAt,
-          totalDistanceKm: sql<number>`coalesce(sum(${bikeMovements.distanceKm}) filter (where ${bikeMovements.plausible} = true), 0)`.as("total_distance_km"),
-        })
-        .from(bikes)
-        .leftJoin(bikeMovements, eq(bikes.id, bikeMovements.bikeId))
-        .where(eq(bikes.placeId, opts.input.id))
-        .groupBy(bikes.id)
-        .orderBy(desc(sql.raw("total_distance_km")));
+      const parkedBikesRaw = await db.execute<RawBikeWithDistance>(sql`
+        SELECT
+          b.id, b.number, b.bike_type, b.state, b.active, b.electric_lock,
+          b.pedelec_battery, b.updated_at,
+          COALESCE(m.total_distance_km, 0) AS total_distance_km
+        FROM "nextbike"."bikes" b
+        LEFT JOIN LATERAL (
+          SELECT SUM(distance_km) AS total_distance_km
+          FROM "nextbike"."bike_movements"
+          WHERE bike_id = b.id AND plausible = true
+        ) m ON TRUE
+        WHERE b.place_id = ${opts.input.id}
+        ORDER BY total_distance_km DESC NULLS LAST
+      `);
+      const parkedBikes = parkedBikesRaw.map(mapBikeRow);
 
       return {
         id: r.id,
@@ -675,7 +646,7 @@ export const nextbikeRouter = createTRPCRouter({
         networkName: r.network_name,
         country: r.country,
         countryName: r.country_name,
-        bikes: parkedBikes.map((b) => ({ ...b, totalDistanceKm: Number(b.totalDistanceKm) })),
+        bikes: parkedBikes,
       };
     }),
 
@@ -716,14 +687,17 @@ export const nextbikeRouter = createTRPCRouter({
           ST_Y(p.location) AS lat, ST_X(p.location) AS lng,
           a.id AS area_id, a.name AS area_name,
           n.id AS network_id, n.name AS network_name, n.country, n.country_name,
-          COALESCE((SELECT SUM(distance_km) FROM "nextbike"."bike_movements"
-                    WHERE bike_id = b.id AND plausible = true), 0) AS total_distance_km,
-          (SELECT COUNT(*)::int FROM "nextbike"."bike_movements"
-           WHERE bike_id = b.id AND plausible = true) AS trip_count
+          COALESCE(m.total_distance_km, 0) AS total_distance_km,
+          COALESCE(m.trip_count, 0) AS trip_count
         FROM "nextbike"."bikes" b
         JOIN "nextbike"."places" p ON p.id = b.place_id
         JOIN "nextbike"."areas" a ON a.id = p.area_id
         JOIN "nextbike"."networks" n ON n.id = a.network_id
+        LEFT JOIN LATERAL (
+          SELECT SUM(distance_km) AS total_distance_km, COUNT(*)::int AS trip_count
+          FROM "nextbike"."bike_movements"
+          WHERE bike_id = b.id AND plausible = true
+        ) m ON TRUE
         WHERE b.id = ${opts.input.id}
       `);
       const r = rows[0];
@@ -781,30 +755,13 @@ export const nextbikeRouter = createTRPCRouter({
     }),
 
   getLeaderboardNetworks: baseProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(10),
-      })
-    )
+    .input(z.object({ limit: z.number().min(1).max(100).default(10) }))
     .query(async (opts) => {
-      const rows = await db
-        .select({
-          networkId: bikeMovements.networkId,
-          networkName: networks.name,
-          totalDistanceKm: sum(bikeMovements.distanceKm),
-        })
-        .from(bikeMovements)
-        .innerJoin(networks, eq(bikeMovements.networkId, networks.id))
-        .where(eq(bikeMovements.plausible, true))
-        .groupBy(bikeMovements.networkId, networks.name)
-        .orderBy(desc(sql.raw('sum("nextbike"."bike_movements"."distance_km")')))
-        .limit(opts.input.limit);
-
-      return rows.map((row, i) => ({
-        networkId: row.networkId,
-        networkName: row.networkName,
-        totalDistanceKm: Number(row.totalDistanceKm ?? 0),
-        rank: i + 1,
-      }));
+      const [row] = await db
+        .select({ payload: kvCache.payload })
+        .from(kvCache)
+        .where(eq(kvCache.key, CACHE_KEYS.LEADERBOARD_NETWORKS));
+      const data = (row?.payload as LeaderboardNetworkRow[] | undefined) ?? [];
+      return data.slice(0, opts.input.limit);
     }),
 });
