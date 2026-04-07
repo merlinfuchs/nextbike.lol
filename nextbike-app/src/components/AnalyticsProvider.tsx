@@ -3,7 +3,7 @@
 import { OpenPanelComponent } from "@openpanel/nextjs";
 
 export default function AnalyticsProvider() {
-  if (process.env.NODE_ENV !== "production" && typeof window === "undefined") {
+  if (process.env.NODE_ENV !== "production") {
     return null;
   }
 
